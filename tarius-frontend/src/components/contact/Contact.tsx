@@ -58,7 +58,7 @@ export default function Contact(props: { id?: string }) {
     e.preventDefault();
     setIsSubmitting(true);
 
-    let metaData: string[] = [];
+    const metaData: string[] = [];
 
     if (selectedInquiry === 'gifting') {
       metaData.push("Gifting Requirements:");

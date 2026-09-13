@@ -5,8 +5,6 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/api';
-import Navbar from '@/components/navbar/Navbar';
-import Footer from '@/components/footer/Footer';
 
 // --- TYPES ---
 type BlockType = 'hero' | 'story' | 'quality' | 'faq' | 'contact' | 'image_break' | 'rich_text' | 'dual_panel' | 'spacer' | 'quote' | 'mission' | 'image_collage';
@@ -109,7 +107,7 @@ export default function Home() {
     e.preventDefault();
     setIsContactSubmitting(true);
 
-    let metaData: string[] = [];
+    const metaData: string[] = [];
 
     if (selectedInquiry === 'gifting') {
       metaData.push("Gifting Requirements:");
@@ -202,8 +200,6 @@ export default function Home() {
 
   return (
     <>
-      <Navbar />
-
       <main className="bg-[var(--tarius-ivory)] min-h-screen font-body">
         {blocks.map((block) => {
           

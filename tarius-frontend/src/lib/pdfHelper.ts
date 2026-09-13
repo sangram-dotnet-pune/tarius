@@ -1,12 +1,15 @@
 // Filename: src/lib/pdfHelper.ts
 
-import * as pdfjsLib from 'pdfjs-dist';
-
-// We dynamically pull the exact version installed via npm to prevent mismatches
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@' + pdfjsLib.version + '/build/pdf.worker.mjs';
-
 export async function generatePDFThumbnail(file: File): Promise<Blob | null> {
   try {
+    // Lazily load pdfjs-dist only in the browser when a file is uploaded,
+    // so it's never evaluated during server-side prerendering (it requires
+    // browser globals like `Iterator` that are absent on older Node runtimes).
+    const pdfjsLib = await import('pdfjs-dist');
+
+    // We dynamically pull the exact version installed via npm to prevent mismatches
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@' + pdfjsLib.version + '/build/pdf.worker.mjs';
+
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     
