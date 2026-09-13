@@ -256,7 +256,14 @@ export default function AdminInquiries() {
 
   const renderDossierNotes = (notes: string | null) => {
     if (!notes) return <span className="text-stone-400 italic">No additional notes provided.</span>;
-    const lines = notes.split('\n').filter(line => line.trim() !== '' && !line.includes('Phone: Not Provided'));
+    const isFeedback = formData.tier === 'feedback';
+    const lines = notes.split('\n').filter(line => {
+      const trimmed = line.trim();
+      return trimmed !== ''
+        && !line.includes('Phone: Not Provided')
+        && !/^- .*: (N\/A|TBD)( @ (N\/A|TBD))?$/.test(trimmed)
+        && !(isFeedback && (trimmed === '--- Additional Details ---' || trimmed === 'Feedback Context:'));
+    });
 
     return (
       <div className="flex flex-col gap-4">

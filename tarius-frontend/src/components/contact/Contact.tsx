@@ -61,26 +61,31 @@ export default function Contact(props: { id?: string }) {
     const metaData: string[] = [];
 
     if (selectedInquiry === 'gifting') {
-      metaData.push("Gifting Requirements:");
-      metaData.push("- Spirulina: " + (formData.giftingProducts.spirulina ? formData.spirulinaQty : "0"));
-      metaData.push("- Moringa: " + (formData.giftingProducts.moringa ? formData.moringaQty : "0"));
-      metaData.push("- Delivery: " + (formData.deliveryDate || "TBD") + " @ " + (formData.deliveryTime || "TBD"));
-      metaData.push("- Location: " + (formData.deliveryLocation || "TBD"));
+      const lines: string[] = ["Gifting Requirements:"];
+      lines.push("- Spirulina: " + (formData.giftingProducts.spirulina ? formData.spirulinaQty : "0"));
+      lines.push("- Moringa: " + (formData.giftingProducts.moringa ? formData.moringaQty : "0"));
+      if (formData.deliveryDate || formData.deliveryTime) {
+        lines.push("- Delivery: " + [formData.deliveryDate, formData.deliveryTime].filter(Boolean).join(" @ "));
+      }
+      if (formData.deliveryLocation) {
+        lines.push("- Location: " + formData.deliveryLocation);
+      }
+      metaData.push(...lines);
     } else if (selectedInquiry === 'collab' || selectedInquiry === 'press') {
-      metaData.push("Partnership Details:");
-      metaData.push("- Social/URL: " + (formData.socialHandle || "N/A"));
-      metaData.push("- Products Requested: " + (formData.collabProducts || "N/A"));
-      metaData.push("- Event Date: " + (formData.eventDate || "N/A") + " @ " + (formData.eventTime || "N/A"));
+      const lines: string[] = ["Partnership Details:"];
+      if (formData.socialHandle) lines.push("- Social/URL: " + formData.socialHandle);
+      if (formData.collabProducts) lines.push("- Products Requested: " + formData.collabProducts);
+      metaData.push(...lines);
     } else if (selectedInquiry === 'careers') {
-      metaData.push("Candidate Profile:");
-      metaData.push("- Position: " + (formData.position || "N/A"));
-      metaData.push("- Expected Salary: " + (formData.expectedSalary || "N/A"));
-      metaData.push("- Qualifications: " + (formData.qualifications || "N/A"));
-      metaData.push("- Joining Date: " + (formData.tentativeJoiningDate || "N/A"));
+      const lines: string[] = ["Candidate Profile:"];
+      if (formData.position) lines.push("- Position: " + formData.position);
+      if (formData.expectedSalary) lines.push("- Expected Salary: " + formData.expectedSalary);
+      metaData.push(...lines);
     } else if (selectedInquiry === 'feedback') {
-      metaData.push("Feedback Context:");
-      metaData.push("- Purchased From: " + (formData.purchasePlatform || "N/A"));
-      metaData.push("- Purchase Date: " + (formData.purchaseDate || "N/A"));
+      const lines: string[] = ["Feedback Context:"];
+      if (formData.purchasePlatform) lines.push("- Purchased From: " + formData.purchasePlatform);
+      if (formData.purchaseDate) lines.push("- Purchase Date: " + formData.purchaseDate);
+      metaData.push(...lines);
     }
 
     const compiledNotes = [
