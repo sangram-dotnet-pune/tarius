@@ -122,12 +122,15 @@ export default function AdminInquiries() {
     if (!viewingId) return;
 
     setIsSaving(true);
+    const original = inquiries.find((i) => i.id === viewingId);
+    const previousStatus = formData.status === 'archived' ? original?.status : null;
+
     const { error } = await supabase
       .from('Inquiry')
       .update({ 
         status: formData.status,
         updatedAt: new Date().toISOString(),
-        updatedBy: adminEmail 
+        updatedBy: buildUpdatedBy(previousStatus)
       })
       .eq('id', viewingId);
 
@@ -195,6 +198,32 @@ export default function AdminInquiries() {
     if (!newStatus || selectedIds.length === 0) return;
     
     setIsBulkUpdating(true);
+
+    if (newStatus === 'archived') {
+      // Per-inquiry updates so each archived row records its own previous status.
+      for (const id of selectedIds) {
+        const original = inquiries.find((i) => i.id === id);
+        const { error } = await supabase
+          .from('Inquiry')
+          .update({
+            status: 'archived',
+            updatedAt: new Date().toISOString(),
+            updatedBy: buildUpdatedBy(original?.status),
+          })
+          .eq('id', id);
+        if (error) {
+          setIsBulkUpdating(false);
+          alert('Failed to update multiple inquiries.');
+          return;
+        }
+      }
+      setSelectedIds([]);
+      setIsSelectionMode(false);
+      setIsBulkUpdating(false);
+      await fetchInquiries();
+      return;
+    }
+
     const { error } = await supabase
       .from('Inquiry')
       .update({ 
@@ -252,6 +281,33 @@ export default function AdminInquiries() {
       default:
         return 'bg-stone-100 text-stone-600 border-stone-200';
     }
+  };
+
+  // Persisted as `<email>|<previousStatus>` inside the existing updatedBy text column
+  // so no DB schema change is required.
+  const parseUpdatedBy = (updatedBy?: string) => {
+    if (!updatedBy) return { email: '', previousStatus: null as string | null };
+    const idx = updatedBy.indexOf('|');
+    if (idx === -1) return { email: updatedBy, previousStatus: null as string | null };
+    return {
+      email: updatedBy.slice(0, idx),
+      previousStatus: updatedBy.slice(idx + 1).trim() || null,
+    };
+  };
+
+  const getStatusDisplayLabel = (inquiry: Inquiry) => {
+    const { previousStatus } = parseUpdatedBy(inquiry.updatedBy);
+    if (inquiry.status === 'archived' && previousStatus && previousStatus !== 'archived') {
+      return `${previousStatus} → archived`;
+    }
+    return inquiry.status;
+  };
+
+  const buildUpdatedBy = (previousStatus: string | undefined | null): string => {
+    if (previousStatus && previousStatus !== 'archived') {
+      return `${adminEmail}|${previousStatus}`;
+    }
+    return adminEmail;
   };
 
   const renderDossierNotes = (notes: string | null) => {
@@ -505,7 +561,7 @@ export default function AdminInquiries() {
 
                   <div className="flex flex-wrap items-center gap-4 shrink-0 pl-9 md:pl-0">
                     <div className={`px-3 py-1 rounded-full border text-[9px] uppercase tracking-widest font-medium ${getStatusStyle(inquiry.status)}`}>
-                      {inquiry.status}
+                      {getStatusDisplayLabel(inquiry)}
                     </div>
 
                     {!isSelectionMode && (
@@ -551,6 +607,15 @@ export default function AdminInquiries() {
                         <option value="allocated">Completed / Allocated</option>
                         <option value="archived">Archived</option>
                       </select>
+                      {formData.status === 'archived' && (() => {
+                        const { previousStatus } = parseUpdatedBy(formData.updatedBy);
+                        if (!previousStatus || previousStatus === 'archived') return null;
+                        return (
+                          <p className="mt-2 text-[9px] uppercase tracking-widest text-stone-500">
+                            Previous status: <span className="font-semibold text-[var(--tarius-olive)]">{previousStatus} → archived</span>
+                          </p>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -614,13 +679,21 @@ export default function AdminInquiries() {
                       </div>
 
                       {/* Display Audit Trail */}
-                      {formData.updatedAt && (
-                        <div className="mt-auto border-t border-[var(--tarius-border)] pt-4">
-                           <p className="text-[9px] uppercase tracking-widest text-stone-400">
-                             Last updated on {new Date(formData.updatedAt).toLocaleDateString()} by <span className="font-medium text-[var(--tarius-olive)]">{formData.updatedBy}</span>
-                           </p>
-                        </div>
-                      )}
+                      {formData.updatedAt && (() => {
+                        const { email: updatedByEmail, previousStatus } = parseUpdatedBy(formData.updatedBy);
+                        return (
+                          <div className="mt-auto border-t border-[var(--tarius-border)] pt-4 space-y-1.5">
+                            <p className="text-[9px] uppercase tracking-widest text-stone-400">
+                              Last updated on {new Date(formData.updatedAt).toLocaleDateString()} by <span className="font-medium text-[var(--tarius-olive)]">{updatedByEmail}</span>
+                            </p>
+                            {previousStatus && previousStatus !== 'archived' && (
+                              <p className="text-[9px] uppercase tracking-widest text-stone-500">
+                                Status transition: <span className="font-semibold text-[var(--tarius-graphite)]">{previousStatus} → archived</span>
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
 

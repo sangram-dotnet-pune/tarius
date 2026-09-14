@@ -6,6 +6,7 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { scrollToSection, scrollToTop } from '@/lib/scroll';
 
 const collectionLinks = [
   { label: "Genesis", href: "/#story" },
@@ -33,25 +34,20 @@ export default function Footer() {
     return null;
   }
 
-  const scrollToSection = (id: string) => {
-    let attempts = 0;
-    const tryScroll = () => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth" });
-      } else if (attempts < 40) {
-        attempts += 1;
-        window.setTimeout(tryScroll, 50);
-      }
-    };
-    window.setTimeout(tryScroll, 50);
+  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (pathname === '/') {
+      e.preventDefault();
+      scrollToTop();
+    }
   };
 
   const handleSectionClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     const id = href.replace(/^\/#/, "");
-    if (!id || pathname === "/") return;
+    if (!id) return;
     e.preventDefault();
-    router.push(href);
+    if (pathname !== "/") {
+      router.push(href);
+    }
     scrollToSection(id);
   };
 
@@ -75,7 +71,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-16 pb-16 border-b border-white/10">
           <div className="md:col-span-6 flex flex-col items-center md:items-start text-center md:text-left w-full">
             <div className="flex justify-center md:justify-start items-center md:items-start w-full !ml-0 !pl-0">
-              <Link href="/" className="inline-block hover:opacity-80 transition-opacity !m-0 !p-0 text-center md:text-left" aria-label="TARIUS home">
+              <Link href="/" onClick={handleLogoClick} className="inline-block hover:opacity-80 transition-opacity !m-0 !p-0 text-center md:text-left" aria-label="TARIUS home">
                 <Image
                   src="/TARIUS_FOOTER_LOGO.png"
                   alt="TARIUS"

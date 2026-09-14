@@ -25,6 +25,10 @@ html {
   scroll-behavior: smooth;
 }
 
+section[id] {
+  scroll-margin-top: 96px;
+}
+
 body {
   margin: 0;
   background: var(--tarius-ivory);
