@@ -77,6 +77,14 @@ export default function Home() {
     fetchPageData();
   }, []);
 
+  // When arriving from a product's "Request Allocation" button, pre-select the
+  // "Where to Buy" inquiry option in the contact form.
+  useEffect(() => {
+    if (window.location.search.includes('inquiry=buy')) {
+      setSelectedInquiry('buy');
+    }
+  }, []);
+
   // --- FAQ LOGIC ---
   const handleFaqSelect = (idx: number) => {
     if (idx === activeFaqIndex) return;
