@@ -4,6 +4,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 
@@ -59,17 +60,44 @@ export default function AdminLayout({
   };
 
   return (
-    <div className="flex min-h-screen bg-[var(--tarius-ivory)] font-body selection:bg-[var(--tarius-olive)] selection:text-white">
+    <>
+      {/* Mobile restriction notice */}
+      <div className="flex md:hidden min-h-screen bg-[var(--tarius-graphite)] items-center justify-center p-8 text-center font-body selection:bg-[var(--tarius-champagne)] selection:text-[var(--tarius-graphite)]">
+        <div className="max-w-xs flex flex-col items-center gap-6">
+          <Image
+            src="/TARIUS_FOOTER_LOGO.png"
+            alt="TARIUS"
+            width={1200}
+            height={400}
+            className="h-16 w-auto object-contain brightness-0 invert !m-0 !p-0 block mx-auto"
+          />
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] tracking-[0.3em] uppercase text-[var(--tarius-champagne)] block">
+              Desktop Access Only
+            </span>
+            <p className="text-stone-400 text-xs leading-relaxed tracking-wide">
+              The Tarius Admin Portal is optimized exclusively for desktop and laptop environments. Please access via a desktop device.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop layout */}
+      <div className="hidden md:flex min-h-screen bg-[var(--tarius-ivory)] font-body selection:bg-[var(--tarius-olive)] selection:text-white">
       
       <aside className="w-64 border-r border-[var(--tarius-border)] bg-[var(--tarius-ivory-deep)] flex flex-col fixed top-0 h-screen z-20 shadow-xl">
-        <div className="p-8 border-b border-[var(--tarius-border)] mt-4">
-          <Link
-            href="/admin"
-            className="font-display text-2xl tracking-[0.15em] text-[var(--tarius-graphite)] block hover:text-[var(--tarius-olive)] transition-colors"
-          >
-            TARIUS
+        <div className="p-8 border-b border-[var(--tarius-border)] mt-4 flex flex-col items-center gap-1 text-center">
+          <Link href="/admin" className="block !m-0 !p-0">
+            <Image
+              src="/LOGO_TARIUS.png"
+              alt="TARIUS"
+              width={1200}
+              height={400}
+              style={{ width: '200px', height: 'auto' }}
+              className="object-contain !m-0 !p-0 block mx-auto"
+            />
           </Link>
-          <p className="text-eyebrow text-[var(--tarius-olive)] mt-2">
+          <p className="text-eyebrow text-[var(--tarius-olive)]">
             Admin Dashboard
           </p>
         </div>
@@ -130,5 +158,6 @@ export default function AdminLayout({
         </div>
       </main>
     </div>
+    </>
   );
 }
