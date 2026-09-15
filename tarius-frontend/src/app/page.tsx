@@ -5,6 +5,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/api';
+import Navbar from '@/components/navbar/Navbar';
+import Footer from '@/components/footer/Footer';
 
 // --- TYPES ---
 type BlockType = 'hero' | 'story' | 'quality' | 'faq' | 'contact' | 'image_break' | 'rich_text' | 'dual_panel' | 'spacer' | 'quote' | 'mission' | 'image_collage';
@@ -49,15 +51,15 @@ export default function Home() {
     async function fetchPageData() {
       setLoading(true);
 
-      // 1. Fetch the Homepage Blocks
-      const { data: blocksData } = await supabase
-        .from('SiteSettings')
-        .select('value')
-        .eq('key', 'home_page_blocks')
+      // 1. Fetch the ACTIVE Homepage Template from Version Control
+      const { data: activeTemplate } = await supabase
+        .from('PageTemplates')
+        .select('blocks')
+        .eq('is_live', true)
         .single();
 
-      if (blocksData && blocksData.value && Array.isArray(blocksData.value)) {
-        setBlocks(blocksData.value);
+      if (activeTemplate && activeTemplate.blocks && Array.isArray(activeTemplate.blocks)) {
+        setBlocks(activeTemplate.blocks);
       }
 
       // 2. Fetch the Live FAQs
@@ -213,6 +215,8 @@ export default function Home() {
 
   return (
     <>
+      <Navbar />
+
       <main className="bg-[var(--tarius-ivory)] min-h-screen font-body">
         {blocks.map((block) => {
           
@@ -788,7 +792,7 @@ export default function Home() {
         })}
       </main>
 
-
+      <Footer />
     </>
   );
 }

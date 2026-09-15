@@ -16,8 +16,17 @@ interface Block {
   content: any;
 }
 
+interface PageTemplate {
+  id: string;
+  name: string;
+  is_live: boolean;
+}
+
 export default function AdminFullscreenCertifications() {
   const [blocks, setBlocks] = useState<Block[]>([]);
+  const [templates, setTemplates] = useState<PageTemplate[]>([]);
+  const [activeTemplateId, setActiveTemplateId] = useState<string>('');
+  
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [processingMediaId, setProcessingMediaId] = useState<string | null>(null);
@@ -94,45 +103,141 @@ export default function AdminFullscreenCertifications() {
   };
 
   useEffect(() => {
-    fetchPageLayout();
+    initializeBuilder();
   }, []);
 
-  const fetchPageLayout = async () => {
+  const initializeBuilder = async () => {
+    setLoading(true);
+    
+    // 1. Fetch the list of available templates
+    const { data: templateList, error: listError } = await supabase
+      .from('CertificationsTemplates')
+      .select('id, name, is_live')
+      .order('created_at', { ascending: false });
+
+    if (templateList && templateList.length > 0) {
+      setTemplates(templateList);
+      
+      // 2. Find the live template (or default to the first one) to load initially
+      const liveTemplate = templateList.find(t => t.is_live) || templateList[0];
+      await loadTemplateBlocks(liveTemplate.id);
+    }
+    
+    setLoading(false);
+  };
+
+  const loadTemplateBlocks = async (templateId: string) => {
     setLoading(true);
     const { data, error } = await supabase
-      .from('SiteSettings')
-      .select('value')
-      .eq('key', 'certifications_page_blocks')
+      .from('CertificationsTemplates')
+      .select('blocks')
+      .eq('id', templateId)
       .single();
 
-    if (data && data.value && Array.isArray(data.value)) {
-      setBlocks(data.value);
+    if (data && data.blocks) {
+      setBlocks(data.blocks);
+      setActiveTemplateId(templateId);
     }
     setLoading(false);
   };
 
-  const handleSaveLayout = async () => {
+  // --- VERSION CONTROL ENGINES ---
+
+  const handleSaveDraft = async () => {
+    if (!activeTemplateId) return;
     setIsSaving(true);
+    
     const supabaseAuth = createBrowserClient(
       process.env['NEXT_PUBLIC_SUPABASE_URL'] as string,
       process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] as string
     );
 
     const { error } = await supabaseAuth
-      .from('SiteSettings')
-      .upsert({ 
-        key: 'certifications_page_blocks', 
-        value: blocks,
-        updatedAt: new Date().toISOString()
-      }, { onConflict: 'key' });
+      .from('CertificationsTemplates')
+      .update({ 
+        blocks: blocks,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', activeTemplateId);
 
     if (error) {
-      alert("Failed to save layout. " + error.message);
+      alert("Failed to save draft.");
     } else {
-      alert("Page layout published successfully!");
+      alert("Draft saved successfully! (Not visible to public)");
     }
     setIsSaving(false);
   };
+
+  const handleSaveAsNew = async () => {
+    const newTemplateName = window.prompt("Enter a name for this new template (e.g., '2026 Audit Layout'):");
+    if (!newTemplateName) return;
+    
+    setIsSaving(true);
+    const supabaseAuth = createBrowserClient(
+      process.env['NEXT_PUBLIC_SUPABASE_URL'] as string,
+      process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] as string
+    );
+
+    const { data, error } = await supabaseAuth
+      .from('CertificationsTemplates')
+      .insert([
+        {
+          name: newTemplateName,
+          blocks: blocks,
+          is_live: false
+        }
+      ])
+      .select()
+      .single();
+
+    if (error || !data) {
+      alert("Failed to create new template.");
+    } else {
+      // Refresh the template list and switch to the newly created one
+      const { data: updatedList } = await supabase.from('CertificationsTemplates').select('id, name, is_live').order('created_at', { ascending: false });
+      if (updatedList) setTemplates(updatedList);
+      setActiveTemplateId(data.id);
+      alert("New template created and loaded into the canvas.");
+    }
+    setIsSaving(false);
+  };
+
+  const handlePublishLive = async () => {
+    if (!activeTemplateId) return;
+    
+    const confirmPublish = window.confirm("Are you sure you want to push this layout to the live certifications page?");
+    if (!confirmPublish) return;
+
+    setIsSaving(true);
+    const supabaseAuth = createBrowserClient(
+      process.env['NEXT_PUBLIC_SUPABASE_URL'] as string,
+      process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] as string
+    );
+
+    // 1. Remove the is_live flag from all templates
+    await supabaseAuth.from('CertificationsTemplates').update({ is_live: false }).neq('id', '00000000-0000-0000-0000-000000000000');
+
+    // 2. Update blocks and set is_live = true for the active template
+    const { error } = await supabaseAuth
+      .from('CertificationsTemplates')
+      .update({ 
+        blocks: blocks,
+        is_live: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', activeTemplateId);
+
+    if (error) {
+      alert("Failed to publish layout.");
+    } else {
+      // Refresh template list to update the (LIVE) badge visually
+      const { data: updatedList } = await supabase.from('CertificationsTemplates').select('id, name, is_live').order('created_at', { ascending: false });
+      if (updatedList) setTemplates(updatedList);
+      alert("Page updated successfully! This template is now live.");
+    }
+    setIsSaving(false);
+  };
+
 
   // --- BLOCK MANAGEMENT ---
   const addBlock = (type: string) => {
@@ -364,7 +469,6 @@ export default function AdminFullscreenCertifications() {
     </div>
   );
 
-  // Reusable inline input styling perfectly matching public site
   const inputBaseStyle = "bg-transparent border-b border-transparent outline-none focus:border-current hover:border-current/30 transition-colors cursor-text ";
   const textareaStyle = inputBaseStyle + "w-full resize-none overflow-hidden ";
 
@@ -373,7 +477,7 @@ export default function AdminFullscreenCertifications() {
       <div className="min-h-screen flex items-center justify-center bg-[var(--tarius-ivory)]">
         <div className="flex items-center gap-3 text-stone-500 text-xs uppercase tracking-widest">
           <div className="w-4 h-4 rounded-full border border-stone-300 border-t-stone-600 animate-spin"></div>
-          Loading Canvas...
+          Loading Framework...
         </div>
       </div>
     );
@@ -382,16 +486,50 @@ export default function AdminFullscreenCertifications() {
   return (
     <div className="bg-[var(--tarius-ivory)] min-h-screen font-body flex flex-col w-full absolute top-0 left-0 right-0 z-50">
       
-      {/* Sticky Top Toolbar with Dropdown */}
-      <div className="sticky top-0 z-[100] bg-white border-b border-[var(--tarius-border)] shadow-sm px-8 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full">
-        <div>
-          <h1 className="font-display text-2xl text-[var(--tarius-graphite)]">Certifications Visual Builder</h1>
-          <p className="text-[10px] uppercase tracking-widest text-[var(--tarius-olive)]">1:1 WYSIWYG Editor</p>
+      {/* 
+        ========================================
+        NEW MINIMALIST VERSION CONTROL TOOLBAR 
+        ========================================
+      */}
+      <div className="sticky top-0 z-[100] bg-white border-b border-[var(--tarius-border)] shadow-sm px-4 sm:px-8 py-3 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 w-full">
+        
+        {/* Left: Branding & Current Template Select */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full xl:w-auto">
+          <div>
+            <h1 className="font-display text-xl text-[var(--tarius-graphite)] leading-none mb-1">Certifications Engine</h1>
+            <p className="text-[9px] uppercase tracking-widest text-stone-400">Version Control</p>
+          </div>
+          
+          <div className="hidden sm:block w-px h-8 bg-[var(--tarius-border)]"></div>
+          
+          {/* Template Switcher */}
+          <div className="flex items-center border border-[var(--tarius-border)] bg-stone-50 rounded-sm overflow-hidden flex-1 sm:flex-none">
+            <select 
+              value={activeTemplateId} 
+              onChange={(e) => loadTemplateBlocks(e.target.value)}
+              className="bg-transparent px-3 py-2 text-[10px] uppercase tracking-widest text-[var(--tarius-graphite)] outline-none cursor-pointer border-r border-[var(--tarius-border)] max-w-[200px] truncate"
+            >
+              {templates.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.name} {t.is_live ? " (LIVE)" : ""}
+                </option>
+              ))}
+            </select>
+            <button 
+              onClick={handleSaveAsNew} 
+              className="px-3 py-2 text-[10px] uppercase tracking-widest text-stone-500 hover:bg-stone-200 transition-colors" 
+              title="Clone as New Template"
+            >
+              + Clone
+            </button>
+          </div>
         </div>
-        <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+
+        {/* Right: Actions */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full xl:w-auto">
           
           <select 
-            className="w-full sm:w-auto bg-stone-50 border border-[var(--tarius-border)] px-4 py-2 text-[10px] uppercase tracking-widest text-[var(--tarius-graphite)] focus:outline-none focus:border-[var(--tarius-olive)] cursor-pointer"
+            className="w-full sm:w-auto bg-white border border-[var(--tarius-border)] px-4 py-2 text-[10px] uppercase tracking-widest text-[var(--tarius-graphite)] focus:outline-none focus:border-[var(--tarius-olive)] cursor-pointer rounded-sm"
             onChange={(e) => {
               if (e.target.value) {
                 addBlock(e.target.value);
@@ -418,19 +556,30 @@ export default function AdminFullscreenCertifications() {
             </optgroup>
           </select>
 
+          {/* Save Draft */}
           <button 
-            onClick={handleSaveLayout} 
+            onClick={handleSaveDraft} 
             disabled={isSaving || processingMediaId !== null} 
-            className="w-full sm:w-auto px-8 py-2 bg-[var(--tarius-olive)] text-white text-[10px] uppercase tracking-widest hover:bg-[var(--tarius-graphite)] transition-colors disabled:opacity-50 rounded-sm"
+            className="w-full sm:w-auto px-6 py-2 bg-transparent text-[var(--tarius-graphite)] border border-[var(--tarius-border)] text-[10px] uppercase tracking-widest hover:bg-stone-50 transition-colors disabled:opacity-50 rounded-sm"
           >
-            {isSaving ? 'Publishing...' : 'Save & Publish'}
+            {isSaving ? 'Saving...' : 'Save Draft'}
           </button>
 
+          {/* Publish to Live */}
+          <button 
+            onClick={handlePublishLive} 
+            disabled={isSaving || processingMediaId !== null} 
+            className="w-full sm:w-auto px-6 py-2 bg-[var(--tarius-olive)] text-white text-[10px] uppercase tracking-widest hover:bg-[var(--tarius-graphite)] transition-colors disabled:opacity-50 rounded-sm"
+          >
+            Publish to Live
+          </button>
+          
           <button 
             onClick={() => window.close()} 
-            className="w-full sm:w-auto px-6 py-2 bg-transparent text-[var(--tarius-graphite)] border border-[var(--tarius-border)] text-[10px] uppercase tracking-widest hover:bg-stone-50 transition-colors rounded-sm"
+            className="w-full sm:w-auto px-4 py-2 bg-transparent text-stone-400 hover:text-red-500 transition-colors rounded-sm ml-0 sm:ml-2"
+            title="Close Editor"
           >
-            Close Editor
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 18L18 6M6 6l12 12"></path></svg>
           </button>
         </div>
       </div>
