@@ -127,13 +127,19 @@ export default function Home() {
   };
 
   const handleCheckboxChange = (productId: string) => {
-    setContactData(prev => ({
-      ...prev,
-      giftingProducts: {
-        ...prev.giftingProducts,
-        [productId]: !prev.giftingProducts[productId]
-      }
-    }));
+    setContactData(prev => {
+      const checked = !prev.giftingProducts[productId];
+      return {
+        ...prev,
+        giftingProducts: {
+          ...prev.giftingProducts,
+          [productId]: checked
+        },
+        giftingQtys: checked && !prev.giftingQtys[productId]
+          ? { ...prev.giftingQtys, [productId]: '1' }
+          : prev.giftingQtys
+      };
+    });
   };
 
   const handleGiftingQtyChange = (productId: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
