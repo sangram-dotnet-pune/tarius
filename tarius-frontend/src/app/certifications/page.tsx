@@ -410,7 +410,7 @@ export default function CertificationsPage() {
 
       </main>
       
-      <Footer />
+
     </>
   );
 }

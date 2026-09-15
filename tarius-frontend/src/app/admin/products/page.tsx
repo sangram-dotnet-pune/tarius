@@ -26,6 +26,7 @@ interface Product {
   inventory: number | null;
   weight: string | null;
   purchaseLinks: PurchaseLink[];
+  actionButtonType?: 'buy_now' | 'request_allocation' | 'coming_soon';
   createdAt: string;
   updatedAt?: string;
   updatedBy?: string;
@@ -42,7 +43,6 @@ export default function AdminProducts() {
   const [isDragging, setIsDragging] = useState(false);
   const [adminEmail, setAdminEmail] = useState<string>('');
   
-  // NEW: State to hold the physical image file before upload
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -82,11 +82,14 @@ export default function AdminProducts() {
   const handleEditClick = (product: Product) => {
     setIsAdding(false);
     setEditingId(product.id);
-    setImageFile(null); // Reset pending uploads
+    setImageFile(null);
     
     const productData = { ...product };
     if (!productData.purchaseLinks) {
       productData.purchaseLinks = [];
+    }
+    if (!productData.actionButtonType) {
+      productData.actionButtonType = productData.purchaseLinks.length > 0 ? 'buy_now' : 'request_allocation';
     }
     
     setFormData(productData);
@@ -95,7 +98,7 @@ export default function AdminProducts() {
   const handleAddClick = () => {
     setEditingId(null);
     setIsAdding(true);
-    setImageFile(null); // Reset pending uploads
+    setImageFile(null);
     
     setFormData({
       id: "prod_" + Math.random().toString(36).substr(2, 9),
@@ -111,6 +114,7 @@ export default function AdminProducts() {
       inventory: 0,
       weight: '',
       purchaseLinks: [],
+      actionButtonType: 'request_allocation',
     });
   };
 
@@ -118,11 +122,11 @@ export default function AdminProducts() {
     setEditingId(null);
     setIsAdding(false);
     setFormData({});
-    setImageFile(null); // Reset pending uploads
+    setImageFile(null);
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
@@ -169,20 +173,17 @@ export default function AdminProducts() {
       return;
     }
     
-    // 1. Hold the actual file in state for upload during Save
     setImageFile(file);
-    
-    // 2. Create a temporary local URL so the admin can preview the image immediately
     setFormData((prev) => ({
       ...prev,
       image: URL.createObjectURL(file),
     }));
   };
-const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
+
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSaving(true);
 
-    // 1. Instantiate the secure client with your browser session
     const supabaseAuth = createBrowserClient(
       process.env['NEXT_PUBLIC_SUPABASE_URL'] as string,
       process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] as string
@@ -197,14 +198,13 @@ const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
       const fileExt = imageFile.name.split('.').pop();
       const fileName = "prod_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9) + "." + fileExt;
       
-      // FIX: Use supabaseAuth here so your admin credentials are sent with the upload
       const { error: uploadError } = await supabaseAuth.storage
         .from('products')
         .upload(fileName, imageFile);
         
       if (uploadError) {
-        console.error('Error uploading image to bucket:', uploadError);
-        alert('Failed to upload image securely to the cloud.');
+        console.error('Error uploading image:', uploadError);
+        alert('Failed to upload image securely.');
         setIsSaving(false);
         return;
       }
@@ -225,22 +225,13 @@ const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     };
 
     if (isAdding) {
-      // FIX: Use supabaseAuth for the database insert
-      const { error } = await supabaseAuth
-        .from('Product')
-        .insert([payload]);
-      
+      const { error } = await supabaseAuth.from('Product').insert([payload]);
       if (error) {
         console.error('Error creating product:', error);
         alert('Failed to create product.');
       }
     } else if (editingId) {
-      // FIX: Use supabaseAuth for the database update
-      const { error } = await supabaseAuth
-        .from('Product')
-        .update(payload)
-        .eq('id', editingId);
-
+      const { error } = await supabaseAuth.from('Product').update(payload).eq('id', editingId);
       if (error) {
         console.error('Error updating product:', error);
         alert('Failed to update product.');
@@ -446,7 +437,7 @@ const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
                 value={formData.image || ''}
                 onChange={(e) => {
                   handleInputChange(e);
-                  setImageFile(null); // Clear pending local file if they manually paste a URL
+                  setImageFile(null);
                 }}
                 className="w-full bg-transparent border-b border-[var(--tarius-border)] py-3 text-[var(--tarius-graphite)] text-sm focus:outline-none focus:border-[var(--tarius-olive)] transition-colors peer placeholder-transparent"
                 placeholder="Or Paste Image Link"
@@ -475,7 +466,21 @@ const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
             </label>
           </div>
 
-          <div className="space-y-4">
+          <div className="relative group pt-2">
+            <label className="block text-[10px] uppercase tracking-widest text-stone-500 mb-2">Primary Action Button</label>
+            <select
+              name="actionButtonType"
+              value={formData.actionButtonType || 'request_allocation'}
+              onChange={handleInputChange}
+              className="w-full bg-transparent border-b border-[var(--tarius-border)] py-3 text-[var(--tarius-graphite)] text-sm focus:outline-none focus:border-[var(--tarius-olive)] transition-colors cursor-pointer"
+            >
+              <option value="buy_now">1. Buy Now (Dropdown with Partner Links)</option>
+              <option value="request_allocation">2. Request Allocation (Redirects to Form)</option>
+              <option value="coming_soon">3. Coming Soon (Disabled Button)</option>
+            </select>
+          </div>
+
+          <div className={"space-y-4 transition-opacity duration-300 " + (formData.actionButtonType !== 'buy_now' ? 'opacity-30 pointer-events-none' : 'opacity-100')}>
             <div className="flex items-center justify-between border-b border-[var(--tarius-border)] pb-2">
               <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--tarius-graphite)]">E-Commerce Partners</p>
               <button
@@ -489,7 +494,7 @@ const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
 
             {(!formData.purchaseLinks || formData.purchaseLinks.length === 0) && (
               <div className="bg-stone-50 border border-stone-200 border-dashed p-4 text-center">
-                <p className="text-xs text-stone-500">No partner links added. Storefront will display default Request Allocation button.</p>
+                <p className="text-xs text-stone-500">No partner links added.</p>
               </div>
             )}
 
@@ -694,12 +699,8 @@ const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
                             <p className="text-[10px] font-medium text-[var(--tarius-olive)]">{product.price}</p>
                           </>
                         )}
-                        {product.purchaseLinks && product.purchaseLinks.length > 0 && (
-                           <>
-                             <span className="text-[var(--tarius-border)]">•</span>
-                             <p className="text-[10px] text-stone-500">{product.purchaseLinks.length} Partner Links</p>
-                           </>
-                        )}
+                        <span className="text-[var(--tarius-border)]">•</span>
+                        <p className="text-[10px] text-stone-500 capitalize">{product.actionButtonType ? product.actionButtonType.replace('_', ' ') : 'request allocation'}</p>
                       </div>
                     </div>
                   </div>

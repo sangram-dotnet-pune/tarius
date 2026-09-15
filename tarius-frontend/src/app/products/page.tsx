@@ -56,7 +56,7 @@ export default function ProductsPage() {
           </p>
         </div>
 
-        {/* Modern Clean Grid Layout (No Overlapping/Sticky Cards) */}
+        {/* Modern Clean Grid Layout */}
         {loading ? (
           <div className="py-32 text-center text-[var(--tarius-graphite-soft)] font-light tracking-widest text-xs uppercase animate-pulse">
             Loading Sovereign Reserves...
@@ -66,6 +66,9 @@ export default function ProductsPage() {
             {activeProducts.map((product, index) => {
               const links = product.purchaseLinks || [];
               const isDropdownOpen = openDropdownId === product.id;
+              
+              // Fallback logic for old products before the column was added
+              const actionType = product.actionButtonType || (links.length > 0 ? 'buy_now' : 'request_allocation');
 
               return (
                 <div
@@ -112,13 +115,13 @@ export default function ProductsPage() {
                         {product.name}
                       </h2>
 
-                      {/* Action Bar (Moved below product name) */}
+                      {/* Action Bar */}
                       <div className="pt-2 pb-6 border-b border-[var(--tarius-border)] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                         <span className="text-[10px] tracking-widest uppercase text-stone-500 font-medium">
-                          {links.length > 0 ? 'Get Yours Now' : 'Direct Concierge'}
+                          {actionType === 'buy_now' ? 'Get Yours Now' : actionType === 'request_allocation' ? 'Direct Concierge' : 'Future Release'}
                         </span>
 
-                        {links.length > 0 ? (
+                        {actionType === 'buy_now' && (
                           <div className="relative w-full sm:w-auto" onClick={(e) => e.stopPropagation()}>
                             <button
                               onClick={() => setOpenDropdownId(isDropdownOpen ? null : product.id)}
@@ -135,8 +138,8 @@ export default function ProductsPage() {
                               </svg>
                             </button>
 
-                            {/* Dropdown Menu opening Downwards */}
-                            {isDropdownOpen && (
+                            {/* Dropdown Menu */}
+                            {isDropdownOpen && links.length > 0 && (
                               <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-full sm:w-56 bg-white border border-[var(--tarius-border)] shadow-xl z-50 overflow-hidden animate-fadeIn">
                                 <div className="p-2.5 bg-[var(--tarius-ivory-deep)] border-b border-[var(--tarius-border)]">
                                   <span className="text-[9px] uppercase tracking-widest text-[var(--tarius-olive)] font-medium block">Select Stockist</span>
@@ -156,7 +159,9 @@ export default function ProductsPage() {
                               </div>
                             )}
                           </div>
-                        ) : (
+                        )}
+
+                        {actionType === 'request_allocation' && (
                           <Link 
                             href={"/?inquiry=buy#contact"} 
                             className="btn-tarius w-full sm:w-auto text-center bg-[var(--tarius-graphite)] text-[var(--tarius-white)] hover:bg-[var(--tarius-olive)] hover:border-[var(--tarius-olive)] transition-all duration-300 py-3 px-6 text-xs uppercase tracking-[0.15em]"
@@ -164,6 +169,16 @@ export default function ProductsPage() {
                             Request Allocation
                           </Link>
                         )}
+
+                        {actionType === 'coming_soon' && (
+                          <button 
+                            disabled 
+                            className="btn-tarius w-full sm:w-auto text-center bg-stone-200 text-stone-400 cursor-not-allowed border-stone-200 py-3 px-6 text-xs uppercase tracking-[0.15em]"
+                          >
+                            Coming Soon
+                          </button>
+                        )}
+
                       </div>
 
                       <p className="text-[var(--tarius-graphite-soft)] text-sm font-light leading-relaxed mb-6">
