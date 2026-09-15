@@ -163,7 +163,7 @@ export default function ProductsPage() {
 
                         {actionType === 'request_allocation' && (
                           <Link 
-                            href={"/?inquiry=buy#contact"} 
+                            href={"/?inquiry=buy&product=" + encodeURIComponent(product.id) + "#contact"} 
                             className="btn-tarius w-full sm:w-auto text-center bg-[var(--tarius-graphite)] text-[var(--tarius-white)] hover:bg-[var(--tarius-olive)] hover:border-[var(--tarius-olive)] transition-all duration-300 py-3 px-6 text-xs uppercase tracking-[0.15em]"
                           >
                             Request Allocation
