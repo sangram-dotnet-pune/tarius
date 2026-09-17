@@ -9,7 +9,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // 1. Compile the extra details using your elegant dark theme styling
     let extraDetailsHTML = "";
 
     if (body.tier === 'gifting') {
@@ -44,7 +43,6 @@ export async function POST(request: Request) {
       extraDetailsHTML += "<p style=\"color: #a8a29e; font-size: 14px; margin: 4px 0;\"><strong style=\"color: #ffffff;\">Product:</strong> " + (body.product || "Not specified") + "</p>";
     }
 
-    // 2. Admin Alert Email (Combining your design with the new data)
     const adminHtml = "<div style=\"font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; background-color: #1a1a1a; color: #ffffff; text-align: center;\">" +
       "<p style=\"font-size: 10px; letter-spacing: 0.3em; color: #c8b99a; text-transform: uppercase; margin-bottom: 20px;\">System Alert</p>" +
       "<h1 style=\"font-size: 24px; font-weight: normal; margin-bottom: 30px; letter-spacing: 0.1em;\">NEW CLIENT DOSSIER</h1>" +
@@ -64,14 +62,20 @@ export async function POST(request: Request) {
       
       "</div></div>";
 
-    await resend.emails.send({
-      from: 'Tarius System <onboarding@resend.dev>',
-      to: 'roshanwadhai175@gmail.com', 
+    // EXPLICIT ERROR CHECKING ADDED HERE
+    const adminEmailResponse = await resend.emails.send({
+      from: 'Tarius System <admin@tarius.in>',
+      to: 'admin@tarius.in', 
       subject: "NEW DOSSIER: " + (body.name || "Client") + " (" + (body.tier || "Inquiry") + ")",
       html: adminHtml,
     });
 
-    // 3. User Auto-Reply Email
+    if (adminEmailResponse.error) {
+      console.error("ADMIN EMAIL FAILED:", adminEmailResponse.error);
+    } else {
+      console.log("Admin email sent successfully.");
+    }
+
     const userHtml = "<div style=\"font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; background-color: #1a1a1a; color: #ffffff; text-align: center;\">" +
       "<p style=\"font-size: 10px; letter-spacing: 0.3em; color: #c8b99a; text-transform: uppercase; margin-bottom: 20px;\">Private Concierge</p>" +
       "<h1 style=\"font-size: 24px; font-weight: normal; margin-bottom: 30px; letter-spacing: 0.1em;\">TARIUS</h1>" +
@@ -80,17 +84,24 @@ export async function POST(request: Request) {
       "<p style=\"color: #57534e; font-size: 10px; margin-top: 40px;\">Do not reply directly to this email. For immediate assistance, please visit the sanctuary portal.</p>" +
       "</div>";
 
-    await resend.emails.send({
-      from: 'Tarius Concierge <onboarding@resend.dev>',
-      to: 'roshanwadhai175@gmail.com', // MUST STAY AS YOUR EMAIL UNTIL DOMAIN IS VERIFIED
+    // EXPLICIT ERROR CHECKING ADDED HERE
+    const userEmailResponse = await resend.emails.send({
+      from: 'Tarius Concierge <admin@tarius.in>',
+      to: body.email, 
       subject: 'TARIUS: Allocation Request Received',
       html: userHtml,
     });
 
+    if (userEmailResponse.error) {
+      console.error("USER AUTO-REPLY FAILED:", userEmailResponse.error);
+    } else {
+      console.log("User auto-reply sent successfully.");
+    }
+
     return NextResponse.json({ success: true });
     
   } catch (error) {
-    console.error('Email alert failure:', error);
+    console.error('Hard crash in API Route:', error);
     return NextResponse.json({ error: 'Failed to dispatch alerts' }, { status: 500 });
   }
 }
