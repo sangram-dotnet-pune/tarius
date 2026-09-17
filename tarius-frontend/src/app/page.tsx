@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/api';
 import Navbar from '@/components/navbar/Navbar';
 import Footer from '@/components/footer/Footer';
+import { scrollToSection } from '@/lib/scroll';
 
 // --- TYPES ---
 type BlockType = 'hero' | 'story' | 'quality' | 'faq' | 'contact' | 'image_break' | 'rich_text' | 'dual_panel' | 'spacer' | 'quote' | 'mission' | 'image_collage';
@@ -109,6 +110,13 @@ export default function Home() {
       setSelectedInquiry('buy');
     }
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    if (window.location.hash === '#contact') {
+      scrollToSection('contact');
+    }
+  }, [loading]);
 
   // --- FAQ LOGIC ---
   const handleFaqSelect = (idx: number) => {
