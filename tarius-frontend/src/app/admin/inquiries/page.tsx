@@ -30,7 +30,7 @@ const inquiryLabels: Record<string, string> = {
   careers: 'Careers',
   feedback: 'General Feedback',
   other: 'Other',
-  interested: 'Interested'
+  interested: 'My Primary Interest'
 };
 
 export default function AdminInquiries() {

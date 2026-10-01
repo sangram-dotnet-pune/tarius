@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/api';
 import { scrollToSection } from '@/lib/scroll';
@@ -25,6 +25,9 @@ interface FaqItem {
   category: string | null;
 }
 
+// Upper bound for the "Interested" repeater so the list can never run away.
+const MAX_INTERESTS = 20;
+
 export default function Home() {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +45,7 @@ export default function Home() {
   const [contactData, setContactData] = useState({
     name: '', email: '', phone: '', preferredContact: 'email', message: '',
     product: '',
+    interests: [''] as string[],
     giftingProducts: {} as Record<string, boolean>,
     giftingQtys: {} as Record<string, string>,
     deliveryDate: '', deliveryTime: '', deliveryLocation: '',
@@ -169,6 +173,96 @@ export default function Home() {
     }));
   };
 
+  // --- INTEREST REPEATER (WhatsApp poll-style dynamic fields) ---
+  const interestRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const pendingInterestFocus = useRef<number | null>(null);
+
+  // Focus by index. If the field does not exist yet (it is about to be
+  // created) the target index is parked in a ref and the input's own ref
+  // callback grabs focus during the commit that inserts it. This is
+  // deterministic - no rAF/layout-effect timing guesswork.
+  const focusInterestField = (index: number) => {
+    const el = interestRefs.current[index];
+    if (el) {
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+      return;
+    }
+    pendingInterestFocus.current = index;
+  };
+
+  const handleInterestChange = (index: number, value: string) => {
+    setContactData((prev) => {
+      const interests = [...prev.interests];
+      interests[index] = value;
+      return { ...prev, interests };
+    });
+  };
+
+  const addInterestField = (afterIndex: number) => {
+    if (contactData.interests.length >= MAX_INTERESTS) return;
+    setContactData((prev) => {
+      const interests = [...prev.interests];
+      interests.splice(afterIndex + 1, 0, '');
+      return { ...prev, interests };
+    });
+    focusInterestField(afterIndex + 1);
+  };
+
+  const removeInterestField = (index: number) => {
+    const fields = contactData.interests;
+    // Never leave the user with zero fields.
+    if (fields.length <= 1) {
+      handleInterestChange(index, '');
+      return;
+    }
+    // The row below slides up into this slot; land focus there (or on the
+    // row above when the last one was removed).
+    const nextFocus = Math.min(index, fields.length - 2);
+    setContactData((prev) => {
+      const interests = prev.interests.filter((_, i) => i !== index);
+      return { ...prev, interests };
+    });
+    focusInterestField(nextFocus);
+  };
+
+  const handleInterestKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    // Never hijack Enter while an IME is composing (CJK candidate selection).
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+
+    const fields = contactData.interests;
+    const value = fields[index] ?? '';
+
+    if (e.key === 'Enter') {
+      // Critical: the inputs live inside the inquiry <form>. Without this the
+      // browser's implicit submission would fire handleContactSubmit instead
+      // of appending a field. preventDefault on keydown cancels it.
+      e.preventDefault();
+      // WhatsApp parity: Enter on an empty trailing row adds nothing, so the
+      // list never fills up with blank fields.
+      if (value.trim() === '' && index === fields.length - 1) return;
+      addInterestField(index);
+      return;
+    }
+
+    if (e.key === 'Backspace' && value === '' && fields.length > 1) {
+      e.preventDefault();
+      removeInterestField(index);
+      return;
+    }
+
+    if (e.key === 'ArrowUp' && index > 0) {
+      e.preventDefault();
+      focusInterestField(index - 1);
+      return;
+    }
+
+    if (e.key === 'ArrowDown' && index < fields.length - 1) {
+      e.preventDefault();
+      focusInterestField(index + 1);
+    }
+  };
+
   const handleContactSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -219,14 +313,20 @@ export default function Home() {
       metaData.push(...lines);
     } else if (selectedInquiry === 'buy') {
       const lines: string[] = ["Product Selection:"];
-      if (contactData.product) lines.push("- Product: " + contactData.product);
+      if (contactData.product) lines.push("- " + contactData.product);
       metaData.push(...lines);
+    } else if (selectedInquiry === 'interested') {
+      const interests = contactData.interests.map((i) => i.trim()).filter(Boolean);
+      if (interests.length > 0) {
+        const lines: string[] = ["Areas of Interest:"];
+        interests.forEach((i) => lines.push("- " + i));
+        metaData.push(...lines);
+      }
     }
 
     const compiledNotes = [
       contactData.phone ? "Phone: " + contactData.phone : null,
-      "Client Message:",
-      contactData.message,
+      contactData.message ? "Client Message:\n" + contactData.message : null,
       ...(metaData.length > 0 ? ['--- Additional Details ---', ...metaData] : [])
     ].filter(Boolean).join('\n');
 
@@ -271,7 +371,7 @@ export default function Home() {
       setSelectedInquiry('');
       setContactData({
         name: '', email: '', phone: '', preferredContact: 'email', message: '',
-        product: '',
+        product: '', interests: [''],
         giftingProducts: {} as Record<string, boolean>,
         giftingQtys: {} as Record<string, string>,
         deliveryDate: '', deliveryTime: '', deliveryLocation: '',
@@ -301,7 +401,7 @@ export default function Home() {
             return (
               <section key={block.id} id="home" className="relative overflow-hidden bg-[var(--tarius-ivory)]">
                 <div className="container-tarius grid min-h-[calc(100svh-76px)] items-center gap-12 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-20">
-                  <div className="relative z-10 max-w-3xl">
+                  <div className="relative z-10 min-w-0 max-w-3xl">
                     <p className="text-eyebrow text-[var(--tarius-olive)]">
                       {block.content.eyebrow}
                     </p>
@@ -331,8 +431,8 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="relative">
-                    <div className="image-tarius relative aspect-[4/5] min-h-[420px] w-full overflow-hidden bg-[var(--tarius-ivory-deep)] sm:min-h-[520px] lg:min-h-0">
+                  <div className="relative min-w-0">
+                    <div className="image-tarius relative aspect-[4/5] min-h-[420px] w-full min-w-0 overflow-hidden bg-[var(--tarius-ivory-deep)] sm:min-h-[520px] lg:min-h-0">
                       {block.content.imageUrl && (
                         <img src={block.content.imageUrl} alt="Hero" className="w-full h-full object-cover absolute inset-0" />
                       )}
@@ -581,7 +681,7 @@ export default function Home() {
                               <option value="press" className="bg-[var(--tarius-graphite)]">9. Press & Media Inquiry</option>
                               <option value="careers" className="bg-[var(--tarius-graphite)]">10. Careers</option>
                               <option value="feedback" className="bg-[var(--tarius-graphite)]">11. General Feedback</option>
-                              <option value="interested" className="bg-[var(--tarius-graphite)]">12. Interested</option>
+                              <option value="interested" className="bg-[var(--tarius-graphite)]">12. My Primary Interest</option>
                               <option value="other" className="bg-[var(--tarius-graphite)]">13. Other</option>
                             </select>
                             <div className="absolute right-0 top-8 pointer-events-none text-stone-400">
@@ -716,18 +816,71 @@ export default function Home() {
                                 </div>
                               )}
 
-                              <div className="relative group mt-4">
-                                <textarea 
-                                  name="message" 
-                                  rows={4} 
-                                  required={selectedInquiry !== 'interested'}
-                                  value={contactData.message}
-                                  onChange={handleContactChange}
-                                  className="w-full bg-transparent border-b border-[var(--tarius-champagne)]/30 py-3 text-[var(--tarius-white)] font-sans text-sm focus:outline-none focus:border-[var(--tarius-champagne)] transition-colors peer placeholder-transparent resize-none" 
-                                  placeholder={selectedInquiry === 'interested' ? "Description" : "Detailed Inquiry Description..."}
-                                />
-                                <label className="absolute left-0 top-3 text-stone-400 font-sans text-xs uppercase tracking-widest transition-all peer-focus:-top-6 peer-focus:text-[10px] peer-focus:text-[var(--tarius-champagne)] peer-valid:-top-6 peer-valid:text-[10px] peer-valid:text-stone-400 pointer-events-none">{selectedInquiry === 'interested' ? "Description" : "Detailed Inquiry Description"}</label>
-                              </div>
+                              {selectedInquiry === 'interested' && (
+                                <div className="space-y-2">
+                                  <div className="flex items-baseline justify-between gap-4">
+                                    <span className="block text-[var(--tarius-champagne)] font-sans text-[10px] uppercase tracking-widest">Areas of Interest</span>
+                                    <span id="tarius-interests-hint" className="text-[9px] uppercase tracking-[0.2em] text-stone-500">
+                                      {contactData.interests.length >= MAX_INTERESTS ? `Maximum ${MAX_INTERESTS} entries` : 'Press Enter to add another'}
+                                    </span>
+                                  </div>
+
+                                  {contactData.interests.map((interest, index) => (
+                                    <div key={index} className="flex items-center gap-3">
+                                      <label htmlFor={`tarius-interest-${index}`} className="sr-only">Area of interest {index + 1}</label>
+                                      <input
+                                        id={`tarius-interest-${index}`}
+                                        ref={(el) => {
+                                          interestRefs.current[index] = el;
+                                          if (el && pendingInterestFocus.current === index) {
+                                            pendingInterestFocus.current = null;
+                                            el.focus();
+                                          }
+                                        }}
+                                        type="text"
+                                        value={interest}
+                                        autoComplete="off"
+                                        aria-describedby="tarius-interests-hint"
+                                        placeholder={index === 0 ? 'e.g. Spirulina powder' : 'Add another area of interest'}
+                                        onChange={(e) => handleInterestChange(index, e.target.value)}
+                                        onKeyDown={(e) => handleInterestKeyDown(e, index)}
+                                        className="w-full min-w-0 bg-transparent border-b border-[var(--tarius-champagne)]/30 py-2 text-sm text-[var(--tarius-white)] font-sans focus:outline-none focus:border-[var(--tarius-champagne)] transition-colors"
+                                      />
+                                      {contactData.interests.length > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => removeInterestField(index)}
+                                          aria-label={`Remove area of interest ${index + 1}`}
+                                          className="shrink-0 inline-flex h-8 w-8 items-center justify-center text-[var(--tarius-champagne)]/40 hover:text-[var(--tarius-champagne)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--tarius-champagne)] transition-colors"
+                                        >
+                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                                            <path strokeLinecap="round" d="M18 6 6 18M6 6l12 12" />
+                                          </svg>
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))}
+
+                                  <p aria-live="polite" className="sr-only">
+                                    {contactData.interests.length} {contactData.interests.length === 1 ? 'area of interest field' : 'areas of interest fields'}
+                                  </p>
+                                </div>
+                              )}
+
+                              {selectedInquiry !== 'interested' && (
+                                <div className="relative group mt-4">
+                                  <textarea 
+                                    name="message" 
+                                    rows={4} 
+                                    required
+                                    value={contactData.message}
+                                    onChange={handleContactChange}
+                                    className="w-full bg-transparent border-b border-[var(--tarius-champagne)]/30 py-3 text-[var(--tarius-white)] font-sans text-sm focus:outline-none focus:border-[var(--tarius-champagne)] transition-colors peer placeholder-transparent resize-none" 
+                                    placeholder="Detailed Inquiry Description..."
+                                  />
+                                  <label className="absolute left-0 top-3 text-stone-400 font-sans text-xs uppercase tracking-widest transition-all peer-focus:-top-6 peer-focus:text-[10px] peer-focus:text-[var(--tarius-champagne)] peer-valid:-top-6 peer-valid:text-[10px] peer-valid:text-stone-400 pointer-events-none">Detailed Inquiry Description</label>
+                                </div>
+                              )}
 
                               <button 
                                 type="submit" 

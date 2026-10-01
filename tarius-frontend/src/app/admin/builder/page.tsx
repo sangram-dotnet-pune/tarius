@@ -667,8 +667,8 @@ export default function FullscreenHomeBuilder() {
                     </div>
                   </div>
 
-                  <div className="relative w-full">
-                    <div className="image-tarius relative aspect-[4/5] min-h-[420px] w-full overflow-hidden bg-[var(--tarius-ivory-deep)] sm:min-h-[520px] lg:min-h-0 border border-[var(--tarius-border)]">
+                  <div className="relative w-full min-w-0">
+                    <div className="image-tarius relative aspect-[4/5] min-h-[420px] w-full min-w-0 overflow-hidden bg-[var(--tarius-ivory-deep)] sm:min-h-[520px] lg:min-h-0 border border-[var(--tarius-border)]">
                       {renderImageDropzone(block.id, block.content.imageUrl)}
                     </div>
                   </div>

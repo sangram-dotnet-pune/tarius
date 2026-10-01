@@ -5,6 +5,17 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env['RESEND_API_KEY'] as string);
 
+const escapeHtml = (value: unknown): string =>
+  String(value ?? '').replace(/[&<>"']/g, (ch) => {
+    switch (ch) {
+      case '&': return '&amp;';
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '"': return '&quot;';
+      default: return '&#39;';
+    }
+  });
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -42,6 +53,17 @@ export async function POST(request: Request) {
       extraDetailsHTML += "<h3 style=\"color: #c8b99a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid #3f3f46; padding-bottom: 8px; margin-top: 24px;\">Product Selection</h3>";
       extraDetailsHTML += "<p style=\"color: #a8a29e; font-size: 14px; margin: 4px 0;\"><strong style=\"color: #ffffff;\">Product:</strong> " + (body.product || "Not specified") + "</p>";
     }
+    else if (body.tier === 'interested') {
+      const interests: string[] = Array.isArray(body.interests)
+        ? body.interests.map((item: unknown) => String(item ?? '').trim()).filter(Boolean)
+        : [];
+      extraDetailsHTML += "<h3 style=\"color: #c8b99a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid #3f3f46; padding-bottom: 8px; margin-top: 24px;\">Areas of Interest</h3>";
+      extraDetailsHTML += interests.length
+        ? "<ul style=\"margin: 8px 0 0 0; padding-left: 18px;\">" +
+            interests.map((item) => "<li style=\"color: #e5e5e5; font-size: 14px; line-height: 1.6;\">" + escapeHtml(item) + "</li>").join("") +
+          "</ul>"
+        : "<p style=\"color: #a8a29e; font-size: 14px; margin: 4px 0;\">No areas of interest listed.</p>";
+    }
 
     const adminHtml = "<div style=\"font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; background-color: #1a1a1a; color: #ffffff; text-align: center;\">" +
       "<p style=\"font-size: 10px; letter-spacing: 0.3em; color: #c8b99a; text-transform: uppercase; margin-bottom: 20px;\">System Alert</p>" +
@@ -55,8 +77,10 @@ export async function POST(request: Request) {
       "<p style=\"margin: 0 0 12px 0;\"><strong style=\"color:#c8b99a; font-size:10px; text-transform:uppercase; letter-spacing:0.1em;\">Nature of Inquiry:</strong> <br/>" + (body.tier || "N/A") + "</p>" +
       "<p style=\"margin: 0 0 12px 0;\"><strong style=\"color:#c8b99a; font-size:10px; text-transform:uppercase; letter-spacing:0.1em;\">Preferred Contact:</strong> <br/>" + (body.preferredContact || "N/A") + "</p>" +
 
-      "<h3 style=\"color: #c8b99a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid #3f3f46; padding-bottom: 8px; margin-top: 24px;\">Client Message</h3>" +
-      "<p style=\"color: #e5e5e5; font-size: 14px; line-height: 1.6; white-space: pre-wrap;\">" + (body.message || "No message provided.") + "</p>" +
+      (body.message
+        ? "<h3 style=\"color: #c8b99a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid #3f3f46; padding-bottom: 8px; margin-top: 24px;\">Client Message</h3>" +
+          "<p style=\"color: #e5e5e5; font-size: 14px; line-height: 1.6; white-space: pre-wrap;\">" + escapeHtml(body.message) + "</p>"
+        : "") +
       
       extraDetailsHTML +
       

@@ -9,7 +9,7 @@ export default function Hero() {
     >
       <div className="container-tarius grid min-h-[calc(100svh-76px)] items-center gap-12 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-20">
         {/* Content */}
-        <div className="relative z-10 max-w-3xl">
+        <div className="relative z-10 min-w-0 max-w-3xl">
           <p className="text-eyebrow text-[var(--tarius-olive)]">
             Premium botanical nutrition
           </p>
@@ -48,8 +48,8 @@ export default function Hero() {
         </div>
 
         {/* Visual */}
-        <div className="relative">
-          <div className="image-tarius relative aspect-[4/5] min-h-[420px] w-full overflow-hidden bg-[var(--tarius-ivory-deep)] sm:min-h-[520px] lg:min-h-0">
+        <div className="relative min-w-0">
+          <div className="image-tarius relative aspect-[4/5] min-h-[420px] w-full min-w-0 overflow-hidden bg-[var(--tarius-ivory-deep)] sm:min-h-[520px] lg:min-h-0">
             <Image
               src="/spirulina powder.jpg"
               alt="Moringa Powder"
