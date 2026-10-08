@@ -87,7 +87,7 @@ export default function Navbar({ initialNavData }: { initialNavData?: NavData })
   };
 
   // Do not render the public navbar on any admin route
-  if (pathname && pathname.startsWith("/admin")) {
+  if (pathname && pathname.startsWith("/hq-8055")) {
     return null;
   }
 

@@ -1,4 +1,4 @@
-// Filename: src/app/admin/manual-orders/page.tsx
+// Filename: src/app/hq-8055/manual-orders/page.tsx
 
 'use client';
 
@@ -10,7 +10,9 @@ export default function AdminManualOrders() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState('');
+  
   const [orders, setOrders] = useState<any[]>([]);
+  const [dbProducts, setDbProducts] = useState<any[]>([]);
 
   // Update State
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -25,7 +27,7 @@ export default function AdminManualOrders() {
     customer_email: '',
     customer_phone: '',
     shipping_address: '',
-    product_selection: 'Spirulina Reserve (50g)',
+    product_selection: '',
     quantity: 1,
     total_value: '',
     payment_status: 'Pending',
@@ -36,8 +38,21 @@ export default function AdminManualOrders() {
   const [formData, setFormData] = useState(defaultFormData);
 
   useEffect(() => {
+    fetchProducts();
     fetchOrders();
   }, []);
+
+  const fetchProducts = async () => {
+    const { data, error } = await supabase
+      .from('Product')
+      .select('name')
+      .eq('isPublished', true)
+      .order('createdAt', { ascending: true });
+
+    if (data && !error) {
+      setDbProducts(data);
+    }
+  };
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -107,7 +122,7 @@ export default function AdminManualOrders() {
       customer_email: order.customer_email || '',
       customer_phone: order.customer_phone || '',
       shipping_address: order.shipping_address || '',
-      product_selection: order.product_selection || 'Spirulina Reserve (50g)',
+      product_selection: order.product_selection || '',
       quantity: order.quantity || 1,
       total_value: order.total_value || '',
       payment_status: order.payment_status || 'Pending',
@@ -250,16 +265,18 @@ export default function AdminManualOrders() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
               <div className="md:col-span-2">
-                <label className="text-[9px] uppercase tracking-widest text-stone-500 block mb-2">Product</label>
+                <label className="text-[9px] uppercase tracking-widest text-stone-500 block mb-2">Product *</label>
                 <select 
                   name="product_selection"
+                  required
                   value={formData.product_selection} 
                   onChange={handleChange}
                   className="w-full bg-transparent border border-[var(--tarius-border)] py-3 px-4 text-sm focus:outline-none focus:border-[var(--tarius-olive)]"
                 >
-                  <option value="Spirulina Reserve (50g)">Spirulina Reserve (50g)</option>
-                  <option value="Spirulina Reserve (100g)">Spirulina Reserve (100g)</option>
-                  <option value="Wild Botanical Moringa (50g)">Wild Botanical Moringa (50g)</option>
+                  <option value="" disabled>Select a product...</option>
+                  {dbProducts.map((p, idx) => (
+                    <option key={"prod_" + idx} value={p.name}>{p.name}</option>
+                  ))}
                   <option value="Dual Allocation (Both Reserves)">Dual Allocation (Both Reserves)</option>
                   <option value="Custom Order">Custom Order</option>
                 </select>

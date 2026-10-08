@@ -29,16 +29,16 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  const isLoginRoute = request.nextUrl.pathname.startsWith('/admin/login');
-  const isForgotRoute = request.nextUrl.pathname.startsWith('/admin/forgot-password');
-  const isResetRoute = request.nextUrl.pathname.startsWith('/admin/reset-password');
+  const isLoginRoute = request.nextUrl.pathname.startsWith('/hq-8055/login');
+  const isForgotRoute = request.nextUrl.pathname.startsWith('/hq-8055/forgot-password');
+  const isResetRoute = request.nextUrl.pathname.startsWith('/hq-8055/reset-password');
   
-  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin') && !isLoginRoute && !isForgotRoute && !isResetRoute;
+  const isAdminRoute = request.nextUrl.pathname.startsWith('/hq-8055') && !isLoginRoute && !isForgotRoute && !isResetRoute;
 
   // 1. Unauthenticated users trying to access the main dashboard get bounced to login
   if (!user && isAdminRoute) {
     const url = request.nextUrl.clone();
-    url.pathname = '/admin/login';
+    url.pathname = '/hq-8055/login';
     return NextResponse.redirect(url);
   }
 
@@ -57,14 +57,14 @@ export async function proxy(request: NextRequest) {
     // 2. User is logged in, but their profile is flagged for a mandatory password reset
     if (needsReset && isAdminRoute) {
       const url = request.nextUrl.clone();
-      url.pathname = '/admin/reset-password';
+      url.pathname = '/hq-8055/reset-password';
       return NextResponse.redirect(url);
     }
 
     // 3. User is logged in, has a secure password, and tries to visit auth pages -> Send to dashboard
     if (!needsReset && (isLoginRoute || isForgotRoute || isResetRoute)) {
       const url = request.nextUrl.clone();
-      url.pathname = '/admin';
+      url.pathname = '/hq-8055';
       return NextResponse.redirect(url);
     }
   }

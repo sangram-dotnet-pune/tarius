@@ -1,4 +1,4 @@
-// Filename: src/app/admin/login/page.tsx
+// Filename: src/app/hq-8055/login/page.tsx
 
 'use client';
 
@@ -34,7 +34,7 @@ export default function AdminLogin() {
       setErrorMsg(error.message);
       setIsLoading(false);
     } else {
-      router.push('/admin');
+      router.push('/hq-8055');
       router.refresh();
     }
   };
@@ -126,11 +126,6 @@ export default function AdminLogin() {
                 {isLoading ? 'Authenticating...' : 'Sign In'}
               </button>
 
-              <div className="text-center">
-                <Link href="/admin/forgot-password" className="text-[10px] tracking-widest uppercase text-white! font-medium hover:text-[var(--tarius-champagne)]! transition-colors border-b-2 border-[var(--tarius-champagne)] pb-1">
-                  Forgot Password
-                </Link>
-              </div>
             </div>
           </form>
         </div>

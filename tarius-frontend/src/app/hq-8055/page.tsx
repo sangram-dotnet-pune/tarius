@@ -1,4 +1,4 @@
-// Filename: src/app/admin/page.tsx
+// Filename: src/app/hq-8055/page.tsx
 
 'use client';
 
@@ -83,7 +83,7 @@ export default function AdminDashboard() {
             {stats.products < 10 ? `0${stats.products}` : stats.products}
           </p>
           <Link
-            href="/admin/products"
+            href="/hq-8055/products"
             className="inline-flex items-center gap-3 text-xs tracking-widest uppercase text-[var(--tarius-graphite)] font-medium hover:text-[var(--tarius-olive)] transition-colors relative z-10"
           >
             Manage Matrix <span>→</span>
@@ -104,7 +104,7 @@ export default function AdminDashboard() {
             {stats.pendingInquiries < 10 ? `0${stats.pendingInquiries}` : stats.pendingInquiries}
           </p>
           <Link
-            href="/admin/inquiries"
+            href="/hq-8055/inquiries"
             className="inline-flex items-center gap-3 text-xs tracking-widest uppercase text-[var(--tarius-graphite)] font-medium hover:text-[var(--tarius-olive)] transition-colors relative z-10"
           >
             Review Requests <span>→</span>
@@ -125,7 +125,7 @@ export default function AdminDashboard() {
             {stats.faqs < 10 ? `0${stats.faqs}` : stats.faqs}
           </p>
           <Link
-            href="/admin/faqs"
+            href="/hq-8055/faqs"
             className="inline-flex items-center gap-3 text-xs tracking-widest uppercase text-[var(--tarius-graphite)] font-medium hover:text-[var(--tarius-olive)] transition-colors relative z-10"
           >
             Update Knowledge <span>→</span>

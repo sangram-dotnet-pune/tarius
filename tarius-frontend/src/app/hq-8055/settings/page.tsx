@@ -1,4 +1,4 @@
-// Filename: src/app/admin/settings/page.tsx
+// Filename: src/app/hq-8055/settings/page.tsx
 
 'use client';
 
@@ -15,6 +15,22 @@ interface FooterColumn {
   title: string;
   links: NavLink[];
 }
+
+// --- DEFAULTS ---
+const defaultNavLinks = [
+  { label: "Shop", href: "/products" },
+  { label: "Our Story", href: "/#story" },
+  { label: "Quality", href: "/#quality" },
+  { label: "Certifications", href: "/certifications" },
+  { label: "FAQ", href: "/#faq" },
+];
+const defaultNavCtaText = "Explore TARIUS";
+const defaultNavCtaLink = "/?inquiry=interest#contact";
+
+const defaultFooterDesc = "Pure botanical extracts and micro-batch reserves cultivated for the uncompromising sanctuary.";
+const defaultFooterCol1 = { title: "Collection", links: [{ label: "Genesis", href: "/#story" }, { label: "Provenance", href: "/#quality" }, { label: "Inquiries", href: "/#faq" }] };
+const defaultFooterCol2 = { title: "Concierge", links: [{ label: "Private Allocation", href: "/#contact" }, { label: "Advisory Desk", href: "/#contact" }, { label: "Secure Dispatch", href: "/#contact" }] };
+const defaultFooterCol3 = { title: "Legal", links: [{ label: "Privacy", href: "/#contact" }, { label: "Terms", href: "/#contact" }, { label: "Assay Reports", href: "/certifications" }] };
 
 export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
@@ -46,6 +62,10 @@ export default function AdminSettings() {
       setNavLinks(navData.value.links || []);
       setNavCtaText(navData.value.ctaText || '');
       setNavCtaLink(navData.value.ctaLink || '');
+    } else {
+      setNavLinks(defaultNavLinks);
+      setNavCtaText(defaultNavCtaText);
+      setNavCtaLink(defaultNavCtaLink);
     }
 
     // Fetch Footer
@@ -55,9 +75,45 @@ export default function AdminSettings() {
       if (footData.value.column1) setFooterCol1(footData.value.column1);
       if (footData.value.column2) setFooterCol2(footData.value.column2);
       if (footData.value.column3) setFooterCol3(footData.value.column3);
+    } else {
+      setFooterDesc(defaultFooterDesc);
+      setFooterCol1(defaultFooterCol1);
+      setFooterCol2(defaultFooterCol2);
+      setFooterCol3(defaultFooterCol3);
     }
 
     setLoading(false);
+  };
+
+  const handleReset = async () => {
+    if (!window.confirm("Are you sure you want to completely reset the Navigation and Footer to default settings? All custom links and text will be lost.")) return;
+    
+    setIsSaving(true);
+    const supabaseAuth = createBrowserClient(
+      process.env['NEXT_PUBLIC_SUPABASE_URL'] as string,
+      process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] as string
+    );
+
+    const defaultNavPayload = {
+      links: defaultNavLinks,
+      ctaText: defaultNavCtaText,
+      ctaLink: defaultNavCtaLink
+    };
+
+    const defaultFooterPayload = {
+      description: defaultFooterDesc,
+      column1: defaultFooterCol1,
+      column2: defaultFooterCol2,
+      column3: defaultFooterCol3
+    };
+
+    // Save Defaults to Database
+    await supabaseAuth.from('SiteSettings').update({ value: defaultNavPayload }).eq('key', 'navbar_settings');
+    await supabaseAuth.from('SiteSettings').update({ value: defaultFooterPayload }).eq('key', 'footer_settings');
+
+    setIsSaving(false);
+    alert('Navigation and Footer reset successfully. Reloading interface...');
+    window.location.reload();
   };
 
   const handleSave = async () => {
@@ -177,21 +233,29 @@ export default function AdminSettings() {
           <p className="text-[9px] uppercase tracking-widest text-stone-400">Navigation & Footer Registry</p>
         </div>
         
-        <div className="flex items-center gap-4 w-full sm:w-auto">
-          <div className="flex bg-stone-100 p-1 border border-[var(--tarius-border)] rounded-sm">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+          <div className="flex bg-stone-100 p-1 border border-[var(--tarius-border)] rounded-sm w-full sm:w-auto mb-2 sm:mb-0">
             <button 
               onClick={() => setActiveTab('navbar')}
-              className={"px-6 py-2 text-[10px] uppercase tracking-widest transition-colors " + (activeTab === 'navbar' ? "bg-white text-[var(--tarius-graphite)] shadow-sm border border-[var(--tarius-border)]" : "text-stone-500 hover:text-[var(--tarius-graphite)]")}
+              className={"flex-1 px-6 py-2 text-[10px] uppercase tracking-widest transition-colors " + (activeTab === 'navbar' ? "bg-white text-[var(--tarius-graphite)] shadow-sm border border-[var(--tarius-border)]" : "text-stone-500 hover:text-[var(--tarius-graphite)]")}
             >
               Navbar
             </button>
             <button 
               onClick={() => setActiveTab('footer')}
-              className={"px-6 py-2 text-[10px] uppercase tracking-widest transition-colors " + (activeTab === 'footer' ? "bg-white text-[var(--tarius-graphite)] shadow-sm border border-[var(--tarius-border)]" : "text-stone-500 hover:text-[var(--tarius-graphite)]")}
+              className={"flex-1 px-6 py-2 text-[10px] uppercase tracking-widest transition-colors " + (activeTab === 'footer' ? "bg-white text-[var(--tarius-graphite)] shadow-sm border border-[var(--tarius-border)]" : "text-stone-500 hover:text-[var(--tarius-graphite)]")}
             >
               Footer
             </button>
           </div>
+
+          <button 
+            onClick={handleReset} 
+            disabled={isSaving} 
+            className="w-full sm:w-auto px-6 py-2.5 bg-transparent border border-red-500 text-red-500 text-[10px] uppercase tracking-widest hover:bg-red-50 transition-colors disabled:opacity-50 rounded-sm"
+          >
+            Reset
+          </button>
 
           <button 
             onClick={handleSave} 

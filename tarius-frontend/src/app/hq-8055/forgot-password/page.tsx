@@ -1,4 +1,4 @@
-// Filename: src/app/admin/forgot-password/page.tsx
+// Filename: src/app/hq-8055/forgot-password/page.tsx
 
 'use client';
 
@@ -24,7 +24,7 @@ export default function ForgotPassword() {
     setStatusMsg('');
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + '/admin/reset-password',
+      redirectTo: window.location.origin + '/hq-8055/reset-password',
     });
 
     if (error) {
@@ -89,7 +89,7 @@ export default function ForgotPassword() {
           </button>
 
           <div className="text-center mt-4">
-            <Link href="/admin/login" className="text-[10px] tracking-widest uppercase text-stone-500 hover:text-white transition-colors">
+            <Link href="/hq-8055/login" className="text-[10px] tracking-widest uppercase text-stone-500 hover:text-white transition-colors">
               Return to Sign In
             </Link>
           </div>

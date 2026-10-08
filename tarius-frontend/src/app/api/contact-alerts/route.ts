@@ -100,19 +100,28 @@ export async function POST(request: Request) {
       console.log("Admin email sent successfully.");
     }
 
+    const referenceId =
+      "AR-" +
+      Date.now().toString(36).toUpperCase() +
+      "-" +
+      Math.random().toString(36).slice(2, 6).toUpperCase();
+
     const userHtml = "<div style=\"font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; background-color: #1a1a1a; color: #ffffff; text-align: center;\">" +
       "<p style=\"font-size: 10px; letter-spacing: 0.3em; color: #c8b99a; text-transform: uppercase; margin-bottom: 20px;\">Private Concierge</p>" +
-      "<h1 style=\"font-size: 24px; font-weight: normal; margin-bottom: 30px; letter-spacing: 0.1em;\">TARIUS</h1>" +
+      "<div align=\"center\" style=\"margin-bottom: 30px;\">" +
+        "<img src=\"https://sdhqelevejgqiyvgmrff.supabase.co/storage/v1/object/public/products/prod_1791215719739_33ggirw.png\" width=\"230\" height=\"110\" alt=\"TARIUS\" style=\"display: block; width: 230px; height: 110px; margin: 0 auto; border: 0; outline: none; text-decoration: none;\" />" +
+      "</div>" +
       "<p style=\"color: #a8a29e; font-size: 14px; line-height: 1.6; margin-bottom: 20px;\">Dear " + (body.name || "Client") + ",</p>" +
       "<p style=\"color: #a8a29e; font-size: 14px; line-height: 1.6; margin-bottom: 40px;\">We have securely received your request. A dedicated member of our concierge team will review your dossier and contact you shortly.</p>" +
       "<p style=\"color: #57534e; font-size: 10px; margin-top: 40px;\">Do not reply directly to this email. For immediate assistance, please visit the sanctuary portal.</p>" +
+      "<p style=\"color: #44403c; font-size: 10px; margin-top: 12px;\">Reference " + escapeHtml(referenceId) + "</p>" +
       "</div>";
 
     // EXPLICIT ERROR CHECKING ADDED HERE
     const userEmailResponse = await resend.emails.send({
       from: 'Tarius Concierge <admin@tarius.in>',
-      to: body.email, 
-      subject: 'TARIUS: Allocation Request Received',
+      to: body.email,
+      subject: 'TARIUS: Allocation Request Received [' + referenceId + ']',
       html: userHtml,
     });
 

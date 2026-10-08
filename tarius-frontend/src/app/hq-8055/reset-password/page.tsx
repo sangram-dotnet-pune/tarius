@@ -1,4 +1,4 @@
-// Filename: src/app/admin/reset-password/page.tsx
+// Filename: src/app/hq-8055/reset-password/page.tsx
 
 'use client';
 
@@ -70,7 +70,7 @@ export default function ResetPassword() {
       return;
     }
 
-    router.push('/admin');
+    router.push('/hq-8055');
     router.refresh();
   };
 

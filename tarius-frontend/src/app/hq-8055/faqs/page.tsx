@@ -1,4 +1,4 @@
-// Filename: src/app/admin/faqs/page.tsx
+// Filename: src/app/hq-8055/faqs/page.tsx
 
 'use client';
 

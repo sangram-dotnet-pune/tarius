@@ -1,4 +1,4 @@
-// Filename: src/app/admin/layout.tsx
+// Filename: src/app/hq-8055/layout.tsx
 
 'use client';
 
@@ -29,27 +29,27 @@ export default function AdminLayout({
       }
     };
     
-    if (pathname && !['/admin/login', '/admin/reset-password', '/admin/forgot-password'].includes(pathname) && !pathname.startsWith('/admin/builder') && !pathname.startsWith('/admin/certifications-builder')) {
+    if (pathname && !['/hq-8055/login', '/hq-8055/reset-password', '/hq-8055/forgot-password'].includes(pathname) && !pathname.startsWith('/hq-8055/builder') && !pathname.startsWith('/hq-8055/certifications-builder')) {
       fetchUser();
     }
   }, [pathname]);
 
   // Bypass layout for the fullscreen builders and auth pages
-  if (pathname && (['/admin/login', '/admin/reset-password', '/admin/forgot-password'].includes(pathname) || pathname.startsWith('/admin/builder') || pathname.startsWith('/admin/certifications-builder'))) {
+  if (pathname && (['/hq-8055/login', '/hq-8055/reset-password', '/hq-8055/forgot-password'].includes(pathname) || pathname.startsWith('/hq-8055/builder') || pathname.startsWith('/hq-8055/certifications-builder'))) {
     return <>{children}</>;
   }
 
   const navItems = [
-    { name: 'Analytics', href: '/admin/analytics' },
-    { name: 'Home Builder', href: '/admin/builder', isExternal: true },
-    { name: 'Products', href: '/admin/products' },
+    { name: 'Analytics', href: '/hq-8055/analytics' },
+    { name: 'Home Builder', href: '/hq-8055/builder', isExternal: true },
+    { name: 'Products', href: '/hq-8055/products' },
     // Update Certifications to open the new fullscreen builder
-    { name: 'Certifications', href: '/admin/certifications-builder', isExternal: true }, 
-    { name: 'FAQs', href: '/admin/faqs' },
-    { name: 'Inquiries', href: '/admin/inquiries' },
-    { name: 'Layout', href: '/admin/settings' },
-    { name: 'Theme', href: '/admin/theme' },
-    { name: 'Manual Orders', href: '/admin/manual-orders' },
+    { name: 'Certifications', href: '/hq-8055/certifications-builder', isExternal: true }, 
+    { name: 'FAQs', href: '/hq-8055/faqs' },
+    { name: 'Inquiries', href: '/hq-8055/inquiries' },
+    { name: 'Layout', href: '/hq-8055/settings' },
+    { name: 'Theme', href: '/hq-8055/theme' },
+    { name: 'Manual Orders', href: '/hq-8055/manual-orders' },
   ];
 
   const handleSignOut = async () => {
@@ -58,7 +58,7 @@ export default function AdminLayout({
       process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] as string
     );
     await supabase.auth.signOut();
-    router.push('/admin/login');
+    router.push('/hq-8055/login');
     router.refresh();
   };
 
@@ -90,7 +90,7 @@ export default function AdminLayout({
       
       <aside className="w-64 border-r border-[var(--tarius-border)] bg-[var(--tarius-ivory-deep)] flex flex-col fixed top-0 h-screen z-20 shadow-xl">
         <div className="p-8 border-b border-[var(--tarius-border)] mt-4 flex flex-col items-center gap-1 text-center">
-          <Link href="/admin" className="block !m-0 !p-0">
+          <Link href="/hq-8055" className="block !m-0 !p-0">
             <Image
               src="/LOGO_TARIUS.png"
               alt="TARIUS"

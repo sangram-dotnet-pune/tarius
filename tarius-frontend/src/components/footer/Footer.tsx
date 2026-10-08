@@ -22,7 +22,7 @@ export default function Footer() {
     fetchFooter();
   }, []);
 
-  if (pathname && pathname.startsWith('/admin')) return null;
+  if (pathname && pathname.startsWith('/hq-8055')) return null;
 
   const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (pathname === '/') {

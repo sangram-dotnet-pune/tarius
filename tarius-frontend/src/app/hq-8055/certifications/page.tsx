@@ -1,4 +1,4 @@
-// Filename: src/app/admin/certifications-builder/page.tsx
+// Filename: src/app/hq-8055/certifications/page.tsx
 
 'use client';
 
@@ -16,18 +16,8 @@ interface Block {
   content: any;
 }
 
-interface PageTemplate {
-  id: string;
-  name: string;
-  is_live: boolean;
-  is_archived: boolean;
-}
-
-export default function AdminFullscreenCertifications() {
+export default function AdminVisualCertifications() {
   const [blocks, setBlocks] = useState<Block[]>([]);
-  const [templates, setTemplates] = useState<PageTemplate[]>([]);
-  const [activeTemplateId, setActiveTemplateId] = useState<string>('');
-  
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [processingMediaId, setProcessingMediaId] = useState<string | null>(null);
@@ -52,7 +42,7 @@ export default function AdminFullscreenCertifications() {
     description: 'Enter detailed laboratory or regulatory notes here...',
     pdfUrl: '',
     thumbnailUrl: '',
-    mediaPosition: 'left'
+    mediaPosition: 'left' // NEW: controls left or right alignment
   };
 
   const defaultDualMedia = {
@@ -104,194 +94,50 @@ export default function AdminFullscreenCertifications() {
   };
 
   useEffect(() => {
-    initializeBuilder();
+    fetchPageLayout();
   }, []);
 
-  const initializeBuilder = async () => {
-    setLoading(true);
-    
-    // Fetch with is_archived status
-    const { data: templateList, error: listError } = await supabase
-      .from('CertificationsTemplates')
-      .select('id, name, is_live, is_archived')
-      .order('created_at', { ascending: false });
-
-    if (templateList && templateList.length > 0) {
-      setTemplates(templateList);
-      
-      const liveTemplate = templateList.find(t => t.is_live) || templateList[0];
-      await loadTemplateBlocks(liveTemplate.id);
-    }
-    
-    setLoading(false);
-  };
-
-  const loadTemplateBlocks = async (templateId: string) => {
+  const fetchPageLayout = async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from('CertificationsTemplates')
-      .select('blocks')
-      .eq('id', templateId)
+      .from('SiteSettings')
+      .select('value')
+      .eq('key', 'certifications_page_blocks')
       .single();
 
-    if (data && data.blocks) {
-      setBlocks(data.blocks);
-      setActiveTemplateId(templateId);
+    if (data && data.value && Array.isArray(data.value)) {
+      setBlocks(data.value);
+    } else {
+      setBlocks([
+        { id: "blk_" + Date.now() + "1", type: 'hero', content: defaultHero },
+        { id: "blk_" + Date.now() + "2", type: 'spotlight', content: defaultSpotlight }
+      ]);
     }
     setLoading(false);
   };
 
-  // --- VERSION CONTROL ENGINES ---
-
-  const handleSaveDraft = async () => {
-    if (!activeTemplateId) return;
+  const handleSaveLayout = async () => {
     setIsSaving(true);
-    
     const supabaseAuth = createBrowserClient(
       process.env['NEXT_PUBLIC_SUPABASE_URL'] as string,
       process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] as string
     );
 
     const { error } = await supabaseAuth
-      .from('CertificationsTemplates')
-      .update({ 
-        blocks: blocks,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', activeTemplateId);
+      .from('SiteSettings')
+      .upsert({ 
+        key: 'certifications_page_blocks', 
+        value: blocks,
+        updatedAt: new Date().toISOString()
+      }, { onConflict: 'key' });
 
     if (error) {
-      alert("Failed to save draft.");
+      alert("Failed to save layout. " + error.message);
     } else {
-      alert("Draft saved successfully! (Not visible to public)");
+      alert("Page layout published successfully!");
     }
     setIsSaving(false);
   };
-
-  const handleSaveAsNew = async () => {
-    const newTemplateName = window.prompt("Enter a name for this new template (e.g., '2026 Audit Layout'):");
-    if (!newTemplateName) return;
-    
-    setIsSaving(true);
-    const supabaseAuth = createBrowserClient(
-      process.env['NEXT_PUBLIC_SUPABASE_URL'] as string,
-      process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] as string
-    );
-
-    const { data, error } = await supabaseAuth
-      .from('CertificationsTemplates')
-      .insert([
-        {
-          name: newTemplateName,
-          blocks: blocks,
-          is_live: false,
-          is_archived: false
-        }
-      ])
-      .select()
-      .single();
-
-    if (error || !data) {
-      alert("Failed to create new template.");
-    } else {
-      const { data: updatedList } = await supabase.from('CertificationsTemplates').select('id, name, is_live, is_archived').order('created_at', { ascending: false });
-      if (updatedList) setTemplates(updatedList);
-      setActiveTemplateId(data.id);
-      alert("New template created and loaded into the canvas.");
-    }
-    setIsSaving(false);
-  };
-
-  const handlePublishLive = async () => {
-    if (!activeTemplateId) return;
-    
-    const confirmPublish = window.confirm("Are you sure you want to push this layout to the live certifications page?");
-    if (!confirmPublish) return;
-
-    setIsSaving(true);
-    const supabaseAuth = createBrowserClient(
-      process.env['NEXT_PUBLIC_SUPABASE_URL'] as string,
-      process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] as string
-    );
-
-    await supabaseAuth.from('CertificationsTemplates').update({ is_live: false }).neq('id', '00000000-0000-0000-0000-000000000000');
-
-    const { error } = await supabaseAuth
-      .from('CertificationsTemplates')
-      .update({ 
-        blocks: blocks,
-        is_live: true,
-        is_archived: false,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', activeTemplateId);
-
-    if (error) {
-      alert("Failed to publish layout.");
-    } else {
-      const { data: updatedList } = await supabase.from('CertificationsTemplates').select('id, name, is_live, is_archived').order('created_at', { ascending: false });
-      if (updatedList) setTemplates(updatedList);
-      alert("Page updated successfully! This template is now live.");
-    }
-    setIsSaving(false);
-  };
-
-  const handleArchiveTemplate = async () => {
-    const template = templates.find(t => t.id === activeTemplateId);
-    if (!template || template.is_live) return;
-    if (!window.confirm("Archive \"" + template.name + "\"? It will be hidden from normal operations but can still be safely deleted later.")) return;
-
-    setIsSaving(true);
-    const supabaseAuth = createBrowserClient(
-      process.env['NEXT_PUBLIC_SUPABASE_URL'] as string,
-      process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] as string
-    );
-
-    const { error } = await supabaseAuth
-      .from('CertificationsTemplates')
-      .update({ is_archived: true, updated_at: new Date().toISOString() })
-      .eq('id', activeTemplateId);
-
-    if (!error) {
-      const { data: updatedList } = await supabase.from('CertificationsTemplates').select('id, name, is_live, is_archived').order('created_at', { ascending: false });
-      if (updatedList) setTemplates(updatedList);
-      alert("Template archived safely.");
-    } else {
-      alert("Failed to archive template.");
-    }
-    setIsSaving(false);
-  };
-
-  const handleDeleteTemplate = async () => {
-    const template = templates.find(t => t.id === activeTemplateId);
-    if (!template || !template.is_archived) return;
-    if (!window.confirm("PERMANENTLY DELETE \"" + template.name + "\"? This action cannot be undone.")) return;
-
-    setIsSaving(true);
-    const supabaseAuth = createBrowserClient(
-      process.env['NEXT_PUBLIC_SUPABASE_URL'] as string,
-      process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] as string
-    );
-
-    const { error } = await supabaseAuth
-      .from('CertificationsTemplates')
-      .delete()
-      .eq('id', activeTemplateId);
-
-    if (!error) {
-      const { data: updatedList } = await supabase.from('CertificationsTemplates').select('id, name, is_live, is_archived').order('created_at', { ascending: false });
-      if (updatedList && updatedList.length > 0) {
-        setTemplates(updatedList);
-        const liveOrFirst = updatedList.find(t => t.is_live) || updatedList[0];
-        await loadTemplateBlocks(liveOrFirst.id);
-      }
-      alert("Template permanently deleted.");
-    } else {
-      alert("Failed to delete template.");
-    }
-    setIsSaving(false);
-  };
-
 
   // --- BLOCK MANAGEMENT ---
   const addBlock = (type: string) => {
@@ -462,9 +308,9 @@ export default function AdminFullscreenCertifications() {
             </label>
           </>
         ) : (
-          <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer p-4 text-center hover:bg-black/5 transition-colors">
+          <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-black/5 transition-colors p-4 text-center">
             {isProcessing ? (
-              <div className="w-6 h-6 rounded-full border-2 border-stone-300 border-t-[var(--tarius-olive)] animate-spin"></div>
+              <div className="w-6 h-6 rounded-full border-2 border-[var(--tarius-border)] border-t-[var(--tarius-olive)] animate-spin"></div>
             ) : (
               <>
                 <svg className={"text-stone-400 mb-1 " + (isMini ? "w-4 h-4" : "w-8 h-8")} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
@@ -498,11 +344,11 @@ export default function AdminFullscreenCertifications() {
         ) : (
           <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-black/5 transition-colors p-4 text-center z-20">
             {isProcessing ? (
-              <div className="w-6 h-6 rounded-full border-2 border-stone-300 border-t-[var(--tarius-olive)] animate-spin"></div>
+              <div className="w-6 h-6 rounded-full border-2 border-[var(--tarius-border)] border-t-[var(--tarius-olive)] animate-spin"></div>
             ) : (
               <>
                 <svg className="text-stone-400 mb-1 w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                <span className="text-[10px] uppercase tracking-widest text-stone-500">Drop Image</span>
+                <span className="text-[10px] uppercase tracking-widest text-stone-500">Drop Banner Image</span>
               </>
             )}
             <input type="file" accept="image/*" className="hidden" onChange={(e) => {
@@ -523,91 +369,30 @@ export default function AdminFullscreenCertifications() {
     </div>
   );
 
-  const inputBaseStyle = "bg-transparent border-b border-transparent outline-none focus:border-current hover:border-current/30 transition-colors cursor-text ";
-  const textareaStyle = inputBaseStyle + "w-full resize-none overflow-hidden ";
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--tarius-ivory)]">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="flex items-center gap-3 text-stone-500 text-xs uppercase tracking-widest">
           <div className="w-4 h-4 rounded-full border border-stone-300 border-t-stone-600 animate-spin"></div>
-          Loading Framework...
+          Loading Visual Canvas...
         </div>
       </div>
     );
   }
 
-  const currentTemplate = templates.find(t => t.id === activeTemplateId);
-
   return (
-    <div className="bg-[var(--tarius-ivory)] min-h-screen font-body flex flex-col w-full absolute top-0 left-0 right-0 z-50">
+    <div className="bg-[var(--tarius-ivory)] min-h-screen pb-40">
       
-      {/* 
-        ========================================
-        NEW MINIMALIST VERSION CONTROL TOOLBAR 
-        ========================================
-      */}
-      <div className="sticky top-0 z-[100] bg-white border-b border-[var(--tarius-border)] shadow-sm px-4 sm:px-8 py-3 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 w-full">
-        
-        {/* Left: Branding & Current Template Select */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full xl:w-auto">
-          <div>
-            <h1 className="font-display text-xl text-[var(--tarius-graphite)] leading-none mb-1">Certifications Engine</h1>
-            <p className="text-[9px] uppercase tracking-widest text-stone-400">Version Control</p>
-          </div>
-          
-          <div className="hidden sm:block w-px h-8 bg-[var(--tarius-border)]"></div>
-          
-          {/* Template Switcher */}
-          <div className="flex items-center border border-[var(--tarius-border)] bg-stone-50 rounded-sm overflow-hidden flex-1 sm:flex-none">
-            <select 
-              value={activeTemplateId} 
-              onChange={(e) => loadTemplateBlocks(e.target.value)}
-              className="bg-transparent px-3 py-2 text-[10px] uppercase tracking-widest text-[var(--tarius-graphite)] outline-none cursor-pointer border-r border-[var(--tarius-border)] max-w-[200px] truncate"
-            >
-              {templates.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.name} {t.is_live ? " (LIVE)" : (t.is_archived ? " (ARCHIVED)" : "")}
-                </option>
-              ))}
-            </select>
-            <button 
-              onClick={handleSaveAsNew} 
-              className="px-3 py-2 text-[10px] uppercase tracking-widest text-stone-500 hover:bg-stone-200 transition-colors border-r border-[var(--tarius-border)]" 
-              title="Clone as New Template"
-            >
-              + Clone
-            </button>
-
-            {/* Archive Button */}
-            {currentTemplate && !currentTemplate.is_live && !currentTemplate.is_archived && (
-              <button 
-                onClick={handleArchiveTemplate} 
-                className="px-3 py-2 text-[10px] uppercase tracking-widest text-orange-600 hover:bg-orange-100 transition-colors border-r border-[var(--tarius-border)]" 
-                title="Archive Template"
-              >
-                Archive
-              </button>
-            )}
-
-            {/* Delete Button (Only visible when archived) */}
-            {currentTemplate && currentTemplate.is_archived && (
-              <button 
-                onClick={handleDeleteTemplate} 
-                className="px-3 py-2 text-[10px] uppercase tracking-widest text-red-600 hover:bg-red-100 transition-colors" 
-                title="Delete Template"
-              >
-                Delete
-              </button>
-            )}
-          </div>
+      {/* Sticky Top Toolbar with Dropdown */}
+      <div className="sticky top-0 z-50 bg-white border-b border-[var(--tarius-border)] shadow-sm px-8 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl text-[var(--tarius-graphite)]">Visual Page Builder</h1>
+          <p className="text-[10px] uppercase tracking-widest text-stone-500">Live Editing: /certifications</p>
         </div>
-
-        {/* Right: Actions */}
-        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full xl:w-auto">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
           
           <select 
-            className="w-full sm:w-auto bg-white border border-[var(--tarius-border)] px-4 py-2 text-[10px] uppercase tracking-widest text-[var(--tarius-graphite)] focus:outline-none focus:border-[var(--tarius-olive)] cursor-pointer rounded-sm"
+            className="w-full sm:w-auto bg-stone-50 border border-[var(--tarius-border)] px-4 py-2 text-[10px] uppercase tracking-widest text-[var(--tarius-graphite)] focus:outline-none focus:border-[var(--tarius-olive)] cursor-pointer"
             onChange={(e) => {
               if (e.target.value) {
                 addBlock(e.target.value);
@@ -635,47 +420,31 @@ export default function AdminFullscreenCertifications() {
           </select>
 
           <button 
-            onClick={handleSaveDraft} 
+            onClick={handleSaveLayout} 
             disabled={isSaving || processingMediaId !== null} 
-            className="w-full sm:w-auto px-6 py-2 bg-transparent text-[var(--tarius-graphite)] border border-[var(--tarius-border)] text-[10px] uppercase tracking-widest hover:bg-stone-50 transition-colors disabled:opacity-50 rounded-sm"
+            className="w-full sm:w-auto px-8 py-2 bg-[var(--tarius-olive)] text-white text-[10px] uppercase tracking-widest hover:bg-[var(--tarius-graphite)] transition-colors disabled:opacity-50 rounded-sm"
           >
-            {isSaving ? 'Saving...' : 'Save Draft'}
-          </button>
-
-          <button 
-            onClick={handlePublishLive} 
-            disabled={isSaving || processingMediaId !== null || currentTemplate?.is_archived} 
-            className="w-full sm:w-auto px-6 py-2 bg-[var(--tarius-olive)] text-white text-[10px] uppercase tracking-widest hover:bg-[var(--tarius-graphite)] transition-colors disabled:opacity-50 rounded-sm"
-          >
-            Publish to Live
-          </button>
-          
-          <button 
-            onClick={() => window.close()} 
-            className="w-full sm:w-auto px-4 py-2 bg-transparent text-stone-400 hover:text-red-500 transition-colors rounded-sm ml-0 sm:ml-2"
-            title="Close Editor"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+            {isSaving ? 'Publishing...' : 'Save & Publish'}
           </button>
         </div>
       </div>
 
       {/* The Visual Canvas */}
-      <div className="w-full flex flex-col items-center pb-40">
+      <div className="w-full flex flex-col items-center">
         {blocks.map((block, index) => (
           <div key={block.id} className="w-full relative group/block border-y border-transparent hover:border-[var(--tarius-olive)] transition-colors">
             {renderBlockControls(block, index)}
 
             {/* BLOCK: HERO */}
             {block.type === 'hero' && (
-              <section className="pt-32 pb-20 flex flex-col items-center justify-center text-center px-4 bg-white border-b border-[var(--tarius-border)] w-full relative z-0">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[var(--tarius-champagne)]/10 rounded-full blur-[100px] pointer-events-none z-0"></div>
-                <div className="max-w-2xl mx-auto w-full flex flex-col items-center relative z-10">
+              <section className="pt-24 pb-16 flex flex-col items-center justify-center text-center px-4 bg-white border-b border-[var(--tarius-border)] w-full">
+                <div className="max-w-2xl mx-auto w-full flex flex-col items-center">
                   <input 
                     type="text" 
                     value={block.content.eyebrow} 
                     onChange={(e) => updateBlockContent(block.id, 'eyebrow', e.target.value)}
-                    className={textareaStyle + "text-[10px] uppercase tracking-[0.3em] text-[var(--tarius-olive)] mb-6 text-center"}
+                    className="text-[10px] uppercase tracking-[0.3em] text-[var(--tarius-olive)] mb-6 block text-center bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-full"
+                    placeholder="Eyebrow Text..."
                   />
                   
                   <div className="relative w-full mb-6 group/select">
@@ -683,7 +452,8 @@ export default function AdminFullscreenCertifications() {
                       type="text" 
                       value={block.content.title} 
                       onChange={(e) => updateBlockContent(block.id, 'title', e.target.value)}
-                      className={textareaStyle + "font-display text-[var(--tarius-graphite)] text-center " + block.content.titleSize}
+                      className={"font-display text-[var(--tarius-graphite)] text-center bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-full " + block.content.titleSize}
+                      placeholder="Hero Title..."
                     />
                     <select 
                       value={block.content.titleSize} 
@@ -701,7 +471,8 @@ export default function AdminFullscreenCertifications() {
                     value={block.content.description} 
                     onChange={(e) => updateBlockContent(block.id, 'description', e.target.value)}
                     rows={3}
-                    className={textareaStyle + "text-stone-500 font-light leading-relaxed text-center"}
+                    className="text-stone-500 font-light leading-relaxed text-center bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-full resize-none"
+                    placeholder="Description paragraph..."
                   />
                 </div>
               </section>
@@ -723,13 +494,15 @@ export default function AdminFullscreenCertifications() {
                     type="text" 
                     value={block.content.title} 
                     onChange={(e) => updateBlockContent(block.id, 'title', e.target.value)}
-                    className={textareaStyle + "font-display text-4xl text-[var(--tarius-graphite)] " + (block.content.alignment === 'center' ? 'text-center' : 'text-left')}
+                    className={"font-display text-4xl text-[var(--tarius-graphite)] bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-full " + (block.content.alignment === 'center' ? 'text-center' : 'text-left')}
+                    placeholder="Section Title"
                   />
                   <textarea 
                     value={block.content.description} 
                     onChange={(e) => updateBlockContent(block.id, 'description', e.target.value)}
                     rows={4}
-                    className={textareaStyle + "text-stone-500 font-light leading-relaxed " + (block.content.alignment === 'center' ? 'text-center' : 'text-left')}
+                    className={"text-stone-500 font-light leading-relaxed bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-full resize-none " + (block.content.alignment === 'center' ? 'text-center' : 'text-left')}
+                    placeholder="Write your paragraph here..."
                   />
                 </div>
               </section>
@@ -760,13 +533,15 @@ export default function AdminFullscreenCertifications() {
                       type="text" 
                       value={block.content.title} 
                       onChange={(e) => updateBlockContent(block.id, 'title', e.target.value)}
-                      className={textareaStyle + "font-display text-4xl lg:text-6xl text-white text-center mb-4"}
+                      className="font-display text-4xl lg:text-6xl text-white bg-transparent border-b border-transparent hover:border-white/30 focus:outline-none focus:border-white w-full text-center mb-4 placeholder-white/50"
+                      placeholder="Overlay Title"
                     />
                     <textarea 
                       value={block.content.description} 
                       onChange={(e) => updateBlockContent(block.id, 'description', e.target.value)}
                       rows={3}
-                      className={textareaStyle + "text-white/80 font-light leading-relaxed text-center"}
+                      className="text-white/80 font-light leading-relaxed bg-transparent border-b border-transparent hover:border-white/30 focus:outline-none focus:border-white w-full resize-none text-center placeholder-white/50"
+                      placeholder="Overlay description text..."
                     />
                   </div>
                 </div>
@@ -777,6 +552,7 @@ export default function AdminFullscreenCertifications() {
             {block.type === 'spotlight' && (
               <section className={"w-full py-24 px-4 sm:px-8 border-b border-[var(--tarius-border)] " + (index % 2 === 0 ? "bg-[var(--tarius-ivory)]" : "bg-white")}>
                 
+                {/* NEW: Left/Right Swap Toggle */}
                 <div className="absolute top-4 left-4 z-50 flex items-center bg-white border border-[var(--tarius-border)] p-1 opacity-0 group-hover/block:opacity-100 transition-opacity rounded-sm">
                   <button onClick={() => updateBlockContent(block.id, 'mediaPosition', 'left')} className={"px-3 py-1 text-[9px] uppercase tracking-widest transition-colors " + (block.content.mediaPosition !== 'right' ? 'bg-[var(--tarius-olive)] text-white' : 'text-stone-500 hover:bg-stone-100')}>PDF Left</button>
                   <button onClick={() => updateBlockContent(block.id, 'mediaPosition', 'right')} className={"px-3 py-1 text-[9px] uppercase tracking-widest transition-colors " + (block.content.mediaPosition === 'right' ? 'bg-[var(--tarius-olive)] text-white' : 'text-stone-500 hover:bg-stone-100')}>PDF Right</button>
@@ -795,19 +571,22 @@ export default function AdminFullscreenCertifications() {
                       type="text" 
                       value={block.content.label} 
                       onChange={(e) => updateBlockContent(block.id, 'label', e.target.value)}
-                      className={textareaStyle + "text-[10px] uppercase tracking-[0.3em] text-[var(--tarius-olive)]"}
+                      className="text-[10px] uppercase tracking-[0.3em] text-[var(--tarius-olive)] bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-full"
+                      placeholder="Tagline (e.g. Official Filing)"
                     />
                     <input 
                       type="text" 
                       value={block.content.title} 
                       onChange={(e) => updateBlockContent(block.id, 'title', e.target.value)}
-                      className={textareaStyle + "font-display text-4xl lg:text-5xl text-[var(--tarius-graphite)] leading-tight"}
+                      className="font-display text-4xl lg:text-5xl text-[var(--tarius-graphite)] leading-tight bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-full"
+                      placeholder="Spotlight Title"
                     />
                     <textarea 
                       value={block.content.description} 
                       onChange={(e) => updateBlockContent(block.id, 'description', e.target.value)}
                       rows={4}
-                      className={textareaStyle + "text-sm font-light leading-relaxed text-stone-600 mt-2"}
+                      className="text-sm font-light leading-relaxed text-stone-600 bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-full resize-none mt-2"
+                      placeholder="Detailed description..."
                     />
                   </div>
                 </div>
@@ -828,13 +607,15 @@ export default function AdminFullscreenCertifications() {
                           type="text" 
                           value={item.title} 
                           onChange={(e) => updateBlockArrayItem(block.id, 'items', i, 'title', e.target.value)}
-                          className={textareaStyle + "font-display text-2xl text-[var(--tarius-graphite)]"}
+                          className="font-display text-2xl text-[var(--tarius-graphite)] bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-full"
+                          placeholder="Document Title"
                         />
                         <textarea 
                           value={item.description} 
                           onChange={(e) => updateBlockArrayItem(block.id, 'items', i, 'description', e.target.value)}
                           rows={3}
-                          className={textareaStyle + "text-sm font-light leading-relaxed text-stone-500"}
+                          className="text-sm font-light leading-relaxed text-stone-500 bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-full resize-none"
+                          placeholder="Document description..."
                         />
                       </div>
                     </div>
@@ -855,13 +636,15 @@ export default function AdminFullscreenCertifications() {
                       type="text" 
                       value={block.content.title} 
                       onChange={(e) => updateBlockContent(block.id, 'title', e.target.value)}
-                      className={textareaStyle + "font-display text-3xl text-[var(--tarius-graphite)] leading-tight text-center"}
+                      className="font-display text-3xl text-[var(--tarius-graphite)] leading-tight bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-full text-center"
+                      placeholder="Featured Document Title"
                     />
                     <textarea 
                       value={block.content.description} 
                       onChange={(e) => updateBlockContent(block.id, 'description', e.target.value)}
-                      rows={3}
-                      className={textareaStyle + "text-sm font-light leading-relaxed text-stone-500 text-center"}
+                      rows={2}
+                      className="text-sm font-light leading-relaxed text-stone-500 bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-full resize-none text-center"
+                      placeholder="Short description..."
                     />
                   </div>
                 </div>
@@ -876,13 +659,15 @@ export default function AdminFullscreenCertifications() {
                     type="text" 
                     value={block.content.sectionTitle} 
                     onChange={(e) => updateBlockContent(block.id, 'sectionTitle', e.target.value)}
-                    className={textareaStyle + "font-display text-3xl text-[var(--tarius-graphite)] mb-2 text-center"}
+                    className="font-display text-3xl text-[var(--tarius-graphite)] mb-2 text-center bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)]"
+                    placeholder="Section Title"
                   />
                   <input 
                     type="text" 
                     value={block.content.sectionSubtitle} 
                     onChange={(e) => updateBlockContent(block.id, 'sectionSubtitle', e.target.value)}
-                    className={textareaStyle + "text-[10px] uppercase tracking-[0.2em] text-stone-500 text-center"}
+                    className="text-[10px] uppercase tracking-[0.2em] text-stone-500 text-center bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-[300px]"
+                    placeholder="Section Subtitle"
                   />
                 </div>
                 
@@ -898,13 +683,15 @@ export default function AdminFullscreenCertifications() {
                           type="text" 
                           value={card.title} 
                           onChange={(e) => updateBlockArrayItem(block.id, 'cards', cardIndex, 'title', e.target.value)}
-                          className={textareaStyle + "font-display text-xl text-[var(--tarius-graphite)] mb-2"}
+                          className="font-display text-xl text-[var(--tarius-graphite)] mb-2 bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-full"
+                          placeholder="Card Title"
                         />
                         <textarea 
                           value={card.description} 
                           onChange={(e) => updateBlockArrayItem(block.id, 'cards', cardIndex, 'description', e.target.value)}
-                          rows={3}
-                          className={textareaStyle + "text-xs font-light text-stone-500"}
+                          rows={2}
+                          className="text-xs font-light text-stone-500 bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-full resize-none"
+                          placeholder="Card description..."
                         />
                       </div>
                     </div>
@@ -924,13 +711,15 @@ export default function AdminFullscreenCertifications() {
                     type="text" 
                     value={block.content.sectionTitle} 
                     onChange={(e) => updateBlockContent(block.id, 'sectionTitle', e.target.value)}
-                    className={textareaStyle + "font-display text-2xl text-[var(--tarius-graphite)] mb-2 text-center"}
+                    className="font-display text-2xl text-[var(--tarius-graphite)] mb-2 text-center bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)]"
+                    placeholder="Ledger Title"
                   />
                   <input 
                     type="text" 
                     value={block.content.sectionSubtitle} 
                     onChange={(e) => updateBlockContent(block.id, 'sectionSubtitle', e.target.value)}
-                    className={textareaStyle + "text-[10px] uppercase tracking-[0.2em] text-stone-500 text-center"}
+                    className="text-[10px] uppercase tracking-[0.2em] text-stone-500 text-center bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-[300px]"
+                    placeholder="Ledger Subtitle"
                   />
                 </div>
 
@@ -946,13 +735,15 @@ export default function AdminFullscreenCertifications() {
                           type="text" 
                           value={item.title} 
                           onChange={(e) => updateBlockArrayItem(block.id, 'items', itemIndex, 'title', e.target.value)}
-                          className={textareaStyle + "text-sm font-medium text-[var(--tarius-graphite)]"}
+                          className="text-sm font-medium text-[var(--tarius-graphite)] bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-full"
+                          placeholder="Item Title"
                         />
                         <input 
                           type="text" 
                           value={item.description} 
                           onChange={(e) => updateBlockArrayItem(block.id, 'items', itemIndex, 'description', e.target.value)}
-                          className={textareaStyle + "text-xs text-stone-500"}
+                          className="text-xs text-stone-500 bg-transparent border-b border-transparent hover:border-stone-300 focus:outline-none focus:border-[var(--tarius-olive)] w-full"
+                          placeholder="Description or Date"
                         />
                       </div>
                     </div>
